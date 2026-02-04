@@ -56,6 +56,13 @@ Rectangle {
             schemaModel.clear()
         }
     }
+
+    Component.onCompleted: {
+        if (App.activeConnectionId !== -1) {
+            currentConnectionId = App.activeConnectionId
+            refresh()
+        }
+    }
     
     ColumnLayout {
         anchors.fill: parent

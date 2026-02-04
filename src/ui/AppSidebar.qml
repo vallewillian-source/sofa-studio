@@ -57,6 +57,14 @@ Rectangle {
         }
     }
 
+    Connections {
+        target: App
+        function onConnectionOpened(id) {
+            root.activeMenuId = "explorer"
+            root.panelOpen = true
+        }
+    }
+
     Component.onCompleted: {
         registerMenu({
             "id": "explorer",
