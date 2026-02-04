@@ -4,13 +4,172 @@ import QtQuick.Layouts
 
 Rectangle {
     id: root
-    width: Theme.sidebarWidth
     color: Theme.surface
-    property string errorMessage: ""
-    
-    border.color: Theme.border
-    border.width: 1
-    // Border only on right side
+    width: Theme.sidebarRailWidth + (panelOpen ? Theme.sidebarWidth : 0)
+    implicitWidth: width
+    signal tableClicked(string schema, string table)
+    signal newQueryClicked()
+    property string activeMenuId: "explorer"
+    property bool panelOpen: false
+    property var activeMenu: null
+    property var primaryMenuModel: []
+    property var secondaryMenuModel: []
+
+    function registerMenu(menu, position) {
+        if (position === "secondary") {
+            secondaryMenuModel = secondaryMenuModel.concat([menu])
+        } else {
+            primaryMenuModel = primaryMenuModel.concat([menu])
+        }
+        updatePanelState()
+    }
+
+    function getMenuById(id) {
+        for (var i = 0; i < primaryMenuModel.length; i++) {
+            if (primaryMenuModel[i].id === id) return primaryMenuModel[i]
+        }
+        for (var j = 0; j < secondaryMenuModel.length; j++) {
+            if (secondaryMenuModel[j].id === id) return secondaryMenuModel[j]
+        }
+        return null
+    }
+
+    function toggleMenu(menuId) {
+        if (activeMenuId === menuId) {
+            panelOpen = !panelOpen
+        } else {
+            activeMenuId = menuId
+            panelOpen = true
+        }
+    }
+
+    function updatePanelState() {
+        activeMenu = getMenuById(activeMenuId)
+        if (!activeMenu || !activeMenu.hasPanel) {
+            panelOpen = false
+        }
+    }
+
+    onActiveMenuIdChanged: {
+        updatePanelState()
+        if (activeMenu && activeMenu.hasPanel) {
+            panelOpen = true
+        }
+    }
+
+    Component.onCompleted: {
+        registerMenu({
+            "id": "explorer",
+            "title": "Explorer",
+            "icon": "🗂",
+            "hasPanel": true,
+            "component": explorerComponent
+        }, "primary")
+        registerMenu({
+            "id": "settings",
+            "title": "Settings",
+            "icon": "⚙",
+            "hasPanel": false,
+            "component": null
+        }, "secondary")
+        activeMenuId = "explorer"
+        updatePanelState()
+    }
+
+    RowLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        Rectangle {
+            Layout.preferredWidth: Theme.sidebarRailWidth
+            Layout.fillHeight: true
+            color: Theme.surface
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 0
+
+                Repeater {
+                    model: primaryMenuModel
+                    delegate: Rectangle {
+                        width: Theme.sidebarRailWidth
+                        height: Theme.sidebarRailWidth
+                        color: mouseArea.containsMouse || root.activeMenuId === modelData.id ? Theme.surfaceHighlight : "transparent"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData.icon
+                            font.pixelSize: Theme.sidebarIconSize
+                            color: root.activeMenuId === modelData.id ? Theme.textPrimary : Theme.textSecondary
+                        }
+
+                        MouseArea {
+                            id: mouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (modelData.hasPanel) {
+                                    root.toggleMenu(modelData.id)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+
+                Repeater {
+                    model: secondaryMenuModel
+                    delegate: Rectangle {
+                        width: Theme.sidebarRailWidth
+                        height: Theme.sidebarRailWidth
+                        color: mouseArea.containsMouse ? Theme.surfaceHighlight : "transparent"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData.icon
+                            font.pixelSize: Theme.sidebarIconSize
+                            color: Theme.textSecondary
+                        }
+
+                        MouseArea {
+                            id: mouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.ArrowCursor
+                            onClicked: {}
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.preferredWidth: panelOpen ? Theme.sidebarWidth : 0
+            Layout.fillHeight: true
+            color: Theme.surface
+            visible: panelOpen
+            clip: true
+
+            Loader {
+                anchors.fill: parent
+                sourceComponent: activeMenu && activeMenu.component ? activeMenu.component : null
+            }
+        }
+    }
+
+    Rectangle {
+        width: 1
+        height: parent.height
+        color: Theme.border
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.sidebarRailWidth
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        visible: panelOpen
+    }
+
     Rectangle {
         width: 1
         height: parent.height
@@ -20,153 +179,12 @@ Rectangle {
         anchors.bottom: parent.bottom
     }
 
-    ConnectionDialog {
-        id: connectionDialog
-        anchors.centerIn: Overlay.overlay
-    }
-
-    Connections {
-        target: App
-        function onConnectionOpened(id) {
-            root.errorMessage = ""
-        }
-        function onConnectionClosed() {
-            root.errorMessage = ""
-        }
-    }
-
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
-
-        // Header
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            color: "transparent"
-            
-            Text {
-                text: "CONNECTIONS"
-                font.bold: true
-                font.pixelSize: 11
-                color: Theme.textSecondary
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.spacingMedium
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
-
-        Text {
-            visible: root.errorMessage.length > 0
-            text: root.errorMessage
-            color: Theme.error
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-            Layout.leftMargin: Theme.spacingMedium
-            Layout.rightMargin: Theme.spacingMedium
-            Layout.fillWidth: true
-        }
-
-        // Connections List
-        ListView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            model: App.connections
-            
-            delegate: Rectangle {
-                width: ListView.view.width
-                height: 30
-                color: (modelData.id === App.activeConnectionId) ? Theme.surfaceHighlight : (mouseArea.containsMouse ? Theme.surfaceHighlight : "transparent")
-                
-                MouseArea {
-                    id: mouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (modelData.id !== App.activeConnectionId) {
-                            var ok = App.openConnection(modelData.id)
-                            if (!ok) {
-                                root.errorMessage = App.lastError
-                            } else {
-                                root.errorMessage = ""
-                            }
-                        }
-                    }
-                }
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: Theme.spacingMedium
-                    anchors.rightMargin: Theme.spacingMedium
-                    spacing: Theme.spacingSmall
-                    
-                    Text {
-                        text: modelData.name
-                        color: (modelData.id === App.activeConnectionId) ? Theme.accent : Theme.textPrimary
-                        font.pixelSize: 13
-                        font.bold: (modelData.id === App.activeConnectionId)
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                    }
-                    
-                    // Edit Button (Text for now)
-                    Text {
-                        text: "✎"
-                        color: Theme.textSecondary
-                        visible: mouseArea.containsMouse
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                connectionDialog.resetFields()
-                                connectionDialog.load(modelData)
-                                connectionDialog.open()
-                            }
-                        }
-                    }
-
-                    // Delete Button
-                    Text {
-                        text: "✖"
-                        color: Theme.textSecondary
-                        visible: mouseArea.containsMouse
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: App.deleteConnection(modelData.id)
-                        }
-                    }
-                }
-            }
-            
-            // Empty State
-            Text {
-                visible: parent.count === 0
-                text: "No connections"
-                color: Theme.textSecondary
-                font.italic: true
-                anchors.centerIn: parent
-            }
-        }
-
-        // Footer Actions
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            color: "transparent"
-            
-            AppButton {
-                text: "New Connection"
-                isPrimary: true
-                anchors.centerIn: parent
-                width: parent.width - (Theme.spacingMedium * 2)
-                onClicked: {
-                    connectionDialog.resetFields()
-                    connectionDialog.open()
-                }
-            }
+    Component {
+        id: explorerComponent
+        DatabaseExplorer {
+            anchors.fill: parent
+            onTableClicked: (schema, table) => root.tableClicked(schema, table)
+            onNewQueryClicked: root.newQueryClicked()
         }
     }
 }

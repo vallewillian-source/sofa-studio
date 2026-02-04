@@ -207,11 +207,8 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
-            // Database Explorer
-            DatabaseExplorer {
+            AppSidebar {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 250
-                visible: App.activeConnectionId !== -1
                 onTableClicked: function(schema, tableName) {
                     openTable(schema, tableName)
                 }

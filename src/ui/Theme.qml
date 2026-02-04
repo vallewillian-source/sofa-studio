@@ -21,6 +21,8 @@ QtObject {
 
     // Sizes
     property int sidebarWidth: 250
+    property int sidebarRailWidth: 48
+    property int sidebarIconSize: 18
     property int tabBarHeight: 35
     property int buttonHeight: 30
     property int radius: 4
