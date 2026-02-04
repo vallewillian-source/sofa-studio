@@ -7,9 +7,22 @@ ApplicationWindow {
     visible: true
     title: qsTr("Sofa Studio")
 
-    Text {
+    Column {
         anchors.centerIn: parent
-        text: qsTr("Boot OK")
-        font.pixelSize: 24
+        spacing: 20
+
+        Text {
+            text: qsTr("Boot OK")
+            font.pixelSize: 24
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
+        Button {
+            text: "Test Command"
+            anchors.horizontalCenter: parent.horizontalCenter
+            onClicked: {
+                App.executeCommand("test.hello")
+            }
+        }
     }
 }
