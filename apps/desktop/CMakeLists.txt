@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2)
 
 qt_add_executable(sofa-desktop
     main.cpp
@@ -21,9 +21,11 @@ qt_add_qml_module(sofa-desktop
 
 target_link_libraries(sofa-desktop
     PRIVATE Qt6::Quick
+    PRIVATE Qt6::QuickControls2
     PRIVATE SofaCore
     PRIVATE SofaDataGrid
     PRIVATE SofaUI
+    PRIVATE SofaUIplugin
     PRIVATE SofaAddonPostgres
 )
 
