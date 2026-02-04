@@ -6,6 +6,7 @@ Rectangle {
     id: root
     width: Theme.sidebarWidth
     color: Theme.surface
+    property string errorMessage: ""
     
     border.color: Theme.border
     border.width: 1
@@ -22,6 +23,16 @@ Rectangle {
     ConnectionDialog {
         id: connectionDialog
         anchors.centerIn: Overlay.overlay
+    }
+
+    Connections {
+        target: App
+        function onConnectionOpened(id) {
+            root.errorMessage = ""
+        }
+        function onConnectionClosed() {
+            root.errorMessage = ""
+        }
     }
 
     ColumnLayout {
@@ -45,6 +56,17 @@ Rectangle {
             }
         }
 
+        Text {
+            visible: root.errorMessage.length > 0
+            text: root.errorMessage
+            color: Theme.error
+            font.pixelSize: 11
+            wrapMode: Text.WordWrap
+            Layout.leftMargin: Theme.spacingMedium
+            Layout.rightMargin: Theme.spacingMedium
+            Layout.fillWidth: true
+        }
+
         // Connections List
         ListView {
             Layout.fillWidth: true
@@ -64,7 +86,12 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         if (modelData.id !== App.activeConnectionId) {
-                            App.openConnection(modelData.id)
+                            var ok = App.openConnection(modelData.id)
+                            if (!ok) {
+                                root.errorMessage = App.lastError
+                            } else {
+                                root.errorMessage = ""
+                            }
                         }
                     }
                 }

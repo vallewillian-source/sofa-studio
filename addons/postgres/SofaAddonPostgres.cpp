@@ -241,6 +241,36 @@ DatasetPage PostgresQueryProvider::execute(const QString& queryStr, const Datase
     return page;
 }
 
+int PostgresQueryProvider::backendPid() {
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    if (!db.isOpen()) {
+        return -1;
+    }
+    QSqlQuery q(db);
+    if (q.exec("SELECT pg_backend_pid()") && q.next()) {
+        return q.value(0).toInt();
+    }
+    return -1;
+}
+
+bool PostgresConnection::cancelQuery(int backendPid) {
+    if (backendPid <= 0) return false;
+    if (m_connectionName.isEmpty()) return false;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    if (!db.isOpen()) return false;
+    QSqlQuery q(db);
+    q.prepare("SELECT pg_cancel_backend(:pid)");
+    q.bindValue(":pid", backendPid);
+    if (!q.exec()) {
+        m_lastError = q.lastError().text();
+        return false;
+    }
+    if (q.next()) {
+        return q.value(0).toBool();
+    }
+    return false;
+}
+
 // --- PostgresAddon ---
 
 std::shared_ptr<IConnectionProvider> PostgresAddon::createConnection() {

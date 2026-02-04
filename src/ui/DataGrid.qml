@@ -10,6 +10,7 @@ Rectangle {
     
     // Public API
     property alias engine: view.engine
+    property bool controlsVisible: true
     
     ColumnLayout {
         anchors.fill: parent
@@ -18,10 +19,11 @@ Rectangle {
         // Toolbar
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
+            Layout.preferredHeight: root.controlsVisible ? 40 : 0
             color: Theme.surface
             border.color: Theme.border
             border.width: 1
+            visible: root.controlsVisible
             
             RowLayout {
                 anchors.fill: parent

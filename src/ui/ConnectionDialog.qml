@@ -156,7 +156,7 @@ Dialog {
                         testStatus.text = "Connection Successful!"
                         testStatus.color = "green"
                     } else {
-                        testStatus.text = "Connection Failed!"
+                        testStatus.text = App.lastError.length > 0 ? App.lastError : "Connection Failed!"
                         testStatus.color = "red"
                     }
                 }

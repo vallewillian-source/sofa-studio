@@ -13,6 +13,8 @@ qt_add_library(SofaCore STATIC
     CommandService.cpp
     AppContext.h
     AppContext.cpp
+    QueryWorker.h
+    QueryWorker.cpp
     ILocalStoreService.h
     LocalStoreService.h
     LocalStoreService.cpp

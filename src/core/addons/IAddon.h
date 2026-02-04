@@ -31,6 +31,7 @@ public:
     virtual ~IQueryProvider() = default;
     // Execute a raw query
     virtual DatasetPage execute(const QString& query, const DatasetRequest& request) = 0;
+    virtual int backendPid() { return -1; }
 };
 
 class IConnectionProvider {
@@ -47,6 +48,7 @@ public:
     // Access to capabilities
     virtual std::shared_ptr<ICatalogProvider> catalog() = 0;
     virtual std::shared_ptr<IQueryProvider> query() = 0;
+    virtual bool cancelQuery(int backendPid) { (void)backendPid; return false; }
 };
 
 }

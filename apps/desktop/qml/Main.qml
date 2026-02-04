@@ -145,9 +145,14 @@ ApplicationWindow {
         id: tableComponent
         Rectangle {
             id: tableRoot
+            focus: true
             property string schema: "public"
             property string tableName: ""
             property string errorMessage: ""
+            property bool loading: false
+            property bool empty: false
+            property bool gridControlsVisible: true
+            property string requestTag: ""
             
             // View State
             property var views: []
@@ -218,6 +223,7 @@ ApplicationWindow {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 engine: gridEngine
+                controlsVisible: tableRoot.gridControlsVisible
             }
             
             ViewEditor {
@@ -238,12 +244,17 @@ ApplicationWindow {
                 }
             }
 
-            Text {
-                visible: tableRoot.errorMessage.length > 0
-                text: tableRoot.errorMessage
-                color: Theme.error
-                font.pixelSize: 14
-                anchors.centerIn: parent
+            Rectangle {
+                anchors.fill: parent
+                color: "transparent"
+                visible: tableRoot.loading || tableRoot.empty || tableRoot.errorMessage.length > 0
+
+                Text {
+                    anchors.centerIn: parent
+                    text: tableRoot.loading ? "Carregando..." : (tableRoot.errorMessage.length > 0 ? tableRoot.errorMessage : "Sem resultados.")
+                    color: tableRoot.errorMessage.length > 0 ? Theme.error : Theme.textSecondary
+                    font.pixelSize: 14
+                }
             }
 
             function loadViews() {
@@ -297,37 +308,78 @@ ApplicationWindow {
 
             function loadData() {
                 tableRoot.errorMessage = ""
+                tableRoot.empty = false
+                tableRoot.loading = false
                 if (tableName) {
                     loadViews() // Refresh views list
                     
                     console.log("\u001b[34m📥 Buscando dados\u001b[0m", schema + "." + tableName)
-                    var data = App.getDataset(schema, tableName, 100, 0)
-                    console.log("\u001b[32m✅ Dataset recebido\u001b[0m", "colunas=" + (data.columns ? data.columns.length : 0) + " linhas=" + (data.rows ? data.rows.length : 0))
-                    
-                    if (data.error) {
-                        console.error("\u001b[31m❌ Dataset\u001b[0m", data.error)
-                        tableRoot.errorMessage = data.error
+                    tableRoot.requestTag = "table:" + schema + "." + tableName
+                    tableRoot.loading = true
+                    var ok = App.getDatasetAsync(schema, tableName, 100, 0, tableRoot.requestTag)
+                    if (!ok) {
+                        tableRoot.loading = false
+                        tableRoot.errorMessage = App.lastError
                         gridEngine.clear()
-                        return
                     }
-                    if (!data.columns || data.columns.length === 0) {
-                        tableRoot.errorMessage = "Falha ao carregar dados da tabela."
-                        gridEngine.clear()
-                        return
-                    }
-                    
-                    // Save raw columns for editor
-                    tableRoot.rawColumns = []
-                    for (var i = 0; i < data.columns.length; i++) {
-                        tableRoot.rawColumns.push(data.columns[i])
-                    }
-                    
-                    gridEngine.loadFromVariant(data)
-                    
-                    // Re-apply current view if needed
-                    applyView(currentViewId)
                 } else {
                     tableRoot.errorMessage = "Tabela inválida."
+                    gridEngine.clear()
+                }
+            }
+
+            Keys.onPressed: (event) => {
+                if ((event.modifiers & Qt.ControlModifier || event.modifiers & Qt.MetaModifier) && event.key === Qt.Key_Period) {
+                    tableRoot.gridControlsVisible = !tableRoot.gridControlsVisible
+                    event.accepted = true;
+                }
+                if (event.key === Qt.Key_Escape) {
+                    if (tableRoot.loading) {
+                        App.cancelActiveQuery();
+                        event.accepted = true;
+                    }
+                }
+            }
+
+            Connections {
+                target: App
+                function onDatasetStarted(tag) {
+                    if (tag !== tableRoot.requestTag) return;
+                    tableRoot.loading = true
+                    tableRoot.errorMessage = ""
+                }
+                function onDatasetFinished(tag, result) {
+                    if (tag !== tableRoot.requestTag) return;
+                    tableRoot.loading = false
+                    tableRoot.errorMessage = ""
+                    console.log("\u001b[32m✅ Dataset recebido\u001b[0m", "colunas=" + (result.columns ? result.columns.length : 0) + " linhas=" + (result.rows ? result.rows.length : 0))
+                    if (!result.columns || result.columns.length === 0) {
+                        tableRoot.errorMessage = "Falha ao carregar dados da tabela."
+                        tableRoot.empty = false
+                        gridEngine.clear()
+                        return
+                    }
+                    tableRoot.empty = result.rows && result.rows.length === 0
+
+                    tableRoot.rawColumns = []
+                    for (var i = 0; i < result.columns.length; i++) {
+                        tableRoot.rawColumns.push(result.columns[i])
+                    }
+                    gridEngine.loadFromVariant(result)
+                    applyView(currentViewId)
+                }
+                function onDatasetError(tag, error) {
+                    if (tag !== tableRoot.requestTag && tableRoot.requestTag.length > 0) return;
+                    tableRoot.loading = false
+                    tableRoot.empty = false
+                    tableRoot.errorMessage = error
+                    gridEngine.clear()
+                }
+                function onDatasetCanceled(tag) {
+                    if (tag !== tableRoot.requestTag && tableRoot.requestTag.length > 0) return;
+                    tableRoot.loading = false
+                    tableRoot.empty = false
+                    tableRoot.errorMessage = "Query cancelada."
                     gridEngine.clear()
                 }
             }

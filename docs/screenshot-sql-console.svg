@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#1e1e1e"/>
+  <rect x="0" y="0" width="800" height="40" fill="#252526"/>
+  <rect x="0" y="40" width="800" height="180" fill="#1e1e1e"/>
+  <rect x="0" y="220" width="800" height="230" fill="#1e1e1e"/>
+  <rect x="10" y="50" width="780" height="150" fill="#1e1e1e" stroke="#3e3e42"/>
+  <rect x="10" y="230" width="780" height="180" fill="#1e1e1e" stroke="#3e3e42"/>
+  <rect x="10" y="230" width="780" height="30" fill="#252526"/>
+  <text x="20" y="26" fill="#cccccc" font-family="Arial" font-size="12">SQL Console</text>
+  <text x="20" y="80" fill="#9cdcfe" font-family="Arial" font-size="12">SELECT * FROM users LIMIT 10;</text>
+  <text x="20" y="250" fill="#cccccc" font-family="Arial" font-size="12">id</text>
+  <text x="120" y="250" fill="#cccccc" font-family="Arial" font-size="12">email</text>
+  <text x="20" y="290" fill="#9cdcfe" font-family="Arial" font-size="12">1</text>
+  <text x="120" y="290" fill="#9cdcfe" font-family="Arial" font-size="12">ada@sofa.dev</text>
+  <text x="20" y="430" fill="#cccccc" font-family="Arial" font-size="11">Ready</text>
+</svg>

@@ -22,6 +22,25 @@ AppContext::AppContext(std::shared_ptr<ICommandService> commandService,
     if (m_localStore) {
         m_localStore->init();
     }
+
+    m_worker = new QueryWorker(m_addonHost);
+    m_worker->moveToThread(&m_workerThread);
+    connect(&m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
+    connect(m_worker, &QueryWorker::sqlStarted, this, &AppContext::handleSqlStarted);
+    connect(m_worker, &QueryWorker::sqlFinished, this, &AppContext::handleSqlFinished);
+    connect(m_worker, &QueryWorker::sqlError, this, &AppContext::handleSqlError);
+    connect(m_worker, &QueryWorker::datasetStarted, this, &AppContext::handleDatasetStarted);
+    connect(m_worker, &QueryWorker::datasetFinished, this, &AppContext::handleDatasetFinished);
+    connect(m_worker, &QueryWorker::datasetError, this, &AppContext::handleDatasetError);
+    m_workerThread.start();
+}
+
+AppContext::~AppContext()
+{
+    if (m_workerThread.isRunning()) {
+        m_workerThread.quit();
+        m_workerThread.wait();
+    }
 }
 
 void AppContext::executeCommand(const QString& id)
@@ -31,6 +50,13 @@ void AppContext::executeCommand(const QString& id)
     } else if (m_logger) {
         m_logger->error("CommandService is not available");
     }
+}
+
+void AppContext::setLastError(const QString& error)
+{
+    if (m_lastError == error) return;
+    m_lastError = error;
+    emit lastErrorChanged();
 }
 
 QVariantList AppContext::connections() const
@@ -145,8 +171,10 @@ bool AppContext::testConnection(const QVariantMap& data)
     
     if (success) {
         m_logger->info("Connection test successful for " + host);
+        setLastError("");
     } else {
         m_logger->error("Connection test failed: " + connection->lastError());
+        setLastError(connection->lastError());
     }
     
     return success;
@@ -199,11 +227,20 @@ bool AppContext::openConnection(int id)
     
     if (success) {
         m_currentConnectionId = id;
+        m_activeConnectionInfo.clear();
+        m_activeConnectionInfo["driverId"] = driverId;
+        m_activeConnectionInfo["host"] = targetConn.host;
+        m_activeConnectionInfo["port"] = targetConn.port;
+        m_activeConnectionInfo["database"] = targetConn.database;
+        m_activeConnectionInfo["user"] = targetConn.user;
+        m_activeConnectionInfo["password"] = password;
         m_logger->info("Opened connection: " + targetConn.name);
+        setLastError("");
         emit connectionOpened(id);
         emit activeConnectionIdChanged();
     } else {
         m_logger->error("Failed to open connection: " + m_currentConnection->lastError());
+        setLastError(m_currentConnection->lastError());
         m_currentConnection.reset();
         m_currentConnectionId = -1;
         emit activeConnectionIdChanged();
@@ -219,6 +256,7 @@ void AppContext::closeConnection()
     }
     m_currentConnection.reset();
     m_currentConnectionId = -1;
+    m_activeConnectionInfo.clear();
     emit connectionClosed();
     emit activeConnectionIdChanged();
 }
@@ -258,12 +296,14 @@ QVariantMap AppContext::runQuery(const QString& queryText)
     QVariantMap result;
     if (!m_currentConnection) {
         result["error"] = "No active connection";
+        setLastError(result["error"].toString());
         return result;
     }
     
     auto queryProvider = m_currentConnection->query();
     if (!queryProvider) {
         result["error"] = "Connection does not support queries";
+        setLastError(result["error"].toString());
         return result;
     }
     
@@ -280,6 +320,11 @@ QVariantMap AppContext::runQuery(const QString& queryText)
     
     if (!page.warning.isEmpty()) {
         result["warning"] = page.warning;
+    }
+    if (!page.warning.isEmpty() && page.columns.empty()) {
+        result["error"] = page.warning;
+        setLastError(page.warning);
+        return result;
     }
     
     result["executionTime"] = (double)page.executionTimeMs;
@@ -303,7 +348,42 @@ QVariantMap AppContext::runQuery(const QString& queryText)
     }
     result["rows"] = rows;
     
+    setLastError("");
     return result;
+}
+
+bool AppContext::runQueryAsync(const QString& queryText, const QString& requestTag)
+{
+    if (!m_currentConnection || !m_currentConnection->isOpen()) {
+        setLastError("Conexão não está aberta.");
+        emit sqlError(requestTag, m_lastError);
+        return false;
+    }
+    if (m_queryRunning) {
+        setLastError("Já existe uma query em execução.");
+        emit sqlError(requestTag, m_lastError);
+        return false;
+    }
+    if (!m_worker) {
+        setLastError("Worker indisponível.");
+        emit sqlError(requestTag, m_lastError);
+        return false;
+    }
+    if (!m_activeConnectionInfo.contains("driverId")) {
+        setLastError("Configuração de conexão indisponível.");
+        emit sqlError(requestTag, m_lastError);
+        return false;
+    }
+    m_queryRunning = true;
+    emit queryRunningChanged();
+    m_activeRequestTag = requestTag;
+    m_activeRequestType = "sql";
+    m_activeBackendPid = -1;
+    QMetaObject::invokeMethod(m_worker, "runSql", Qt::QueuedConnection,
+                              Q_ARG(QVariantMap, m_activeConnectionInfo),
+                              Q_ARG(QString, queryText),
+                              Q_ARG(QString, requestTag));
+    return true;
 }
 
 QVariantList AppContext::getQueryHistory(int connectionId)
@@ -327,6 +407,7 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
     QVariantMap result;
     if (!m_currentConnection || !m_currentConnection->isOpen()) {
         result["error"] = "Conexão não está aberta.";
+        setLastError(result["error"].toString());
         if (m_logger) {
             m_logger->error("\x1b[31m❌ Dataset\x1b[0m conexão não está aberta");
         }
@@ -346,6 +427,7 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
     auto queryProvider = m_currentConnection->query();
     if (!queryProvider) {
         result["error"] = "Query provider indisponível.";
+        setLastError(result["error"].toString());
         if (m_logger) {
             m_logger->error("\x1b[31m❌ Dataset\x1b[0m query provider indisponível");
         }
@@ -358,6 +440,7 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
     }
     if (!page.warning.isEmpty()) {
         result["error"] = page.warning;
+        setLastError(page.warning);
     }
     
     QVariantList columns;
@@ -370,6 +453,7 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
     result["columns"] = columns;
     if (page.columns.empty() && !result.contains("error")) {
         result["error"] = "Falha ao carregar colunas da tabela.";
+        setLastError(result["error"].toString());
         if (m_logger) {
             m_logger->error("\x1b[31m❌ Dataset\x1b[0m colunas vazias para " + schema + "." + table);
         }
@@ -406,7 +490,73 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
         m_logger->info("\x1b[35m🧪 Dataset first row typed\x1b[0m " + debugVals.join("|"));
     }
     
+    if (!result.contains("error")) {
+        setLastError("");
+    }
     return result;
+}
+
+bool AppContext::getDatasetAsync(const QString& schema, const QString& table, int limit, int offset, const QString& requestTag)
+{
+    if (!m_currentConnection || !m_currentConnection->isOpen()) {
+        setLastError("Conexão não está aberta.");
+        emit datasetError(requestTag, m_lastError);
+        return false;
+    }
+    if (m_queryRunning) {
+        setLastError("Já existe uma query em execução.");
+        emit datasetError(requestTag, m_lastError);
+        return false;
+    }
+    if (!m_worker) {
+        setLastError("Worker indisponível.");
+        emit datasetError(requestTag, m_lastError);
+        return false;
+    }
+    if (!m_activeConnectionInfo.contains("driverId")) {
+        setLastError("Configuração de conexão indisponível.");
+        emit datasetError(requestTag, m_lastError);
+        return false;
+    }
+    m_queryRunning = true;
+    emit queryRunningChanged();
+    m_activeRequestTag = requestTag;
+    m_activeRequestType = "dataset";
+    m_activeBackendPid = -1;
+    QMetaObject::invokeMethod(m_worker, "runDataset", Qt::QueuedConnection,
+                              Q_ARG(QVariantMap, m_activeConnectionInfo),
+                              Q_ARG(QString, schema),
+                              Q_ARG(QString, table),
+                              Q_ARG(int, limit),
+                              Q_ARG(int, offset),
+                              Q_ARG(QString, requestTag));
+    return true;
+}
+
+bool AppContext::cancelActiveQuery()
+{
+    if (!m_queryRunning || !m_currentConnection) {
+        return false;
+    }
+    bool canceled = m_currentConnection->cancelQuery(m_activeBackendPid);
+    if (canceled) {
+        QString tag = m_activeRequestTag;
+        QString type = m_activeRequestType;
+        m_queryRunning = false;
+        emit queryRunningChanged();
+        m_activeBackendPid = -1;
+        m_activeRequestTag.clear();
+        m_activeRequestType.clear();
+        setLastError("");
+        if (type == "sql") {
+            emit sqlCanceled(tag);
+        } else if (type == "dataset") {
+            emit datasetCanceled(tag);
+        }
+    } else {
+        setLastError("Cancelamento não suportado pelo driver.");
+    }
+    return canceled;
 }
 
 QVariantList AppContext::getViews(const QString& schema, const QString& table)
@@ -451,6 +601,70 @@ bool AppContext::deleteView(int id)
     if (!m_localStore) return false;
     m_localStore->deleteView(id);
     return true;
+}
+
+void AppContext::handleSqlStarted(const QString& requestTag, int backendPid)
+{
+    m_activeBackendPid = backendPid;
+    if (requestTag == m_activeRequestTag) {
+        emit sqlStarted(requestTag);
+    }
+}
+
+void AppContext::handleSqlFinished(const QString& requestTag, const QVariantMap& result)
+{
+    if (requestTag != m_activeRequestTag) return;
+    m_queryRunning = false;
+    emit queryRunningChanged();
+    setLastError("");
+    m_activeBackendPid = -1;
+    m_activeRequestTag.clear();
+    m_activeRequestType.clear();
+    emit sqlFinished(requestTag, result);
+}
+
+void AppContext::handleSqlError(const QString& requestTag, const QString& error)
+{
+    if (requestTag != m_activeRequestTag && !m_activeRequestTag.isEmpty()) return;
+    m_queryRunning = false;
+    emit queryRunningChanged();
+    setLastError(error);
+    m_activeBackendPid = -1;
+    m_activeRequestTag.clear();
+    m_activeRequestType.clear();
+    emit sqlError(requestTag, error);
+}
+
+void AppContext::handleDatasetStarted(const QString& requestTag, int backendPid)
+{
+    m_activeBackendPid = backendPid;
+    if (requestTag == m_activeRequestTag) {
+        emit datasetStarted(requestTag);
+    }
+}
+
+void AppContext::handleDatasetFinished(const QString& requestTag, const QVariantMap& result)
+{
+    if (requestTag != m_activeRequestTag) return;
+    m_queryRunning = false;
+    emit queryRunningChanged();
+    setLastError("");
+    m_activeBackendPid = -1;
+    m_activeRequestTag.clear();
+    m_activeRequestType.clear();
+    emit datasetFinished(requestTag, result);
+}
+
+void AppContext::handleDatasetError(const QString& requestTag, const QString& error)
+{
+    if (requestTag != m_activeRequestTag && !m_activeRequestTag.isEmpty()) return;
+    m_queryRunning = false;
+    emit queryRunningChanged();
+    setLastError(error);
+    m_activeBackendPid = -1;
+    m_activeRequestTag.clear();
+    m_activeRequestType.clear();
+    emit datasetError(requestTag, error);
 }
 
 }

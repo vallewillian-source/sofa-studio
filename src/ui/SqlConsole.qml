@@ -6,6 +6,13 @@ import sofa.datagrid 1.0
 
 Item {
     id: root
+    focus: true
+    property bool running: false
+    property bool empty: false
+    property bool gridControlsVisible: true
+    property string statusText: "Ready"
+    property string errorMessage: ""
+    property string requestTag: "sql"
     
     // SplitView for Editor (top) and Results (bottom)
     SplitView {
@@ -41,6 +48,16 @@ Item {
                             highlighted: true
                             onClicked: runQuery()
                         }
+
+                        AppButton {
+                            text: "Cancel"
+                            enabled: root.running
+                            onClicked: {
+                                if (root.running) {
+                                    App.cancelActiveQuery()
+                                }
+                            }
+                        }
                         
                         Label {
                             text: "(Cmd+Enter)"
@@ -75,6 +92,12 @@ Item {
                                 runQuery();
                                 event.accepted = true;
                             }
+                            if (event.key === Qt.Key_Escape) {
+                                if (root.running) {
+                                    App.cancelActiveQuery();
+                                    event.accepted = true;
+                                }
+                            }
                         }
                     }
                 }
@@ -94,6 +117,20 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     engine: gridEngine
+                    controlsVisible: root.gridControlsVisible
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: "transparent"
+                    visible: root.running || root.empty || root.errorMessage.length > 0
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.running ? "Carregando..." : (root.errorMessage.length > 0 ? root.errorMessage : "Sem resultados.")
+                        color: root.errorMessage.length > 0 ? Theme.error : Theme.textSecondary
+                        font.pixelSize: 14
+                    }
                 }
                 
                 // Status Bar
@@ -111,7 +148,7 @@ Item {
                         
                         Label {
                             id: statusLabel
-                            text: "Ready"
+                            text: root.statusText
                             color: Theme.textSecondary
                             font.pixelSize: 11
                         }
@@ -128,26 +165,71 @@ Item {
     function runQuery() {
         var query = queryEditor.text;
         if (!query.trim()) return;
-        
-        statusLabel.text = "Running...";
-        
-        // Call C++ AppContext
-        var result = App.runQuery(query);
-        
-        if (result.error) {
-            statusLabel.text = "Error: " + result.error;
-            return;
+        root.errorMessage = ""
+        root.empty = false
+        root.statusText = "Running..."
+        root.requestTag = "sql"
+        var ok = App.runQueryAsync(query, root.requestTag)
+        if (!ok) {
+            root.running = false
+            root.statusText = "Error"
+            root.errorMessage = App.lastError
         }
-        
-        gridEngine.loadFromVariant(result);
-        
-        var msg = "Done.";
-        if (result.executionTime) {
-            msg += " Time: " + result.executionTime + "ms";
+    }
+
+    Keys.onPressed: (event) => {
+        if ((event.modifiers & Qt.ControlModifier || event.modifiers & Qt.MetaModifier) && event.key === Qt.Key_Period) {
+            root.gridControlsVisible = !root.gridControlsVisible
+            event.accepted = true;
         }
-        if (result.warning) {
-            msg += " Warning: " + result.warning;
+        if (event.key === Qt.Key_Escape) {
+            if (root.running) {
+                App.cancelActiveQuery();
+                event.accepted = true;
+            }
         }
-        statusLabel.text = msg;
+    }
+
+    Connections {
+        target: App
+        function onSqlStarted(tag) {
+            if (tag !== root.requestTag) return;
+            root.running = true
+            root.statusText = "Running..."
+            root.errorMessage = ""
+        }
+        function onSqlFinished(tag, result) {
+            if (tag !== root.requestTag) return;
+            root.running = false
+            root.errorMessage = ""
+            if (result && result.rows && result.rows.length === 0) {
+                root.empty = true
+            } else {
+                root.empty = false
+            }
+            gridEngine.loadFromVariant(result)
+            var msg = "Done."
+            if (result.executionTime) {
+                msg += " Time: " + result.executionTime + "ms";
+            }
+            if (result.warning) {
+                msg += " Warning: " + result.warning;
+            }
+            root.statusText = msg
+        }
+        function onSqlError(tag, error) {
+            if (tag !== root.requestTag && root.requestTag.length > 0) return;
+            root.running = false
+            root.empty = false
+            root.errorMessage = error
+            root.statusText = "Error"
+        }
+        function onSqlCanceled(tag) {
+            if (tag !== root.requestTag && root.requestTag.length > 0) return;
+            root.running = false
+            root.empty = false
+            root.errorMessage = "Query cancelada."
+            root.statusText = "Canceled"
+        }
     }
 }

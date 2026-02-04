@@ -13,6 +13,7 @@ class PostgresQueryProvider : public IQueryProvider {
 public:
     explicit PostgresQueryProvider(const QString& connectionName);
     DatasetPage execute(const QString& query, const DatasetRequest& request) override;
+    int backendPid() override;
 
 private:
     QString m_connectionName;
@@ -42,6 +43,7 @@ public:
 
     std::shared_ptr<ICatalogProvider> catalog() override;
     std::shared_ptr<IQueryProvider> query() override;
+    bool cancelQuery(int backendPid) override;
 
 private:
     QString m_connectionName;
