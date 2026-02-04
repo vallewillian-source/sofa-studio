@@ -128,23 +128,28 @@ Item {
                 anchors.fill: parent
                 spacing: 0
                 
-                DataGrid {
+                // DataGrid Container with Overlay
+                Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    engine: gridEngine
-                    controlsVisible: root.gridControlsVisible
-                }
+                    
+                    DataGrid {
+                        anchors.fill: parent
+                        engine: gridEngine
+                        controlsVisible: root.gridControlsVisible
+                    }
 
-                Rectangle {
-                    anchors.fill: parent
-                    color: "transparent"
-                    visible: root.running || root.empty || root.errorMessage.length > 0
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "transparent"
+                        visible: root.running || root.empty || root.errorMessage.length > 0
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.running ? "Carregando..." : (root.errorMessage.length > 0 ? root.errorMessage : "Sem resultados.")
-                        color: root.errorMessage.length > 0 ? Theme.error : Theme.textSecondary
-                        font.pixelSize: 14
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.running ? "Carregando..." : (root.errorMessage.length > 0 ? root.errorMessage : "Sem resultados.")
+                            color: root.errorMessage.length > 0 ? Theme.error : Theme.textSecondary
+                            font.pixelSize: 14
+                        }
                     }
                 }
                 
