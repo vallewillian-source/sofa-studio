@@ -4,7 +4,7 @@ This document details the internal C++ services and data structures that power S
 
 ## AppContext
 
-**File:** [AppContext.h](file:///Users/vallewillian/www/sofa-studio/src/core/AppContext.h)
+**File:** [AppContext.h](src/core/AppContext.h)
 
 `AppContext` is the central "Brain" of the application. It is registered as a QML Singleton named `App`.
 
@@ -23,7 +23,7 @@ To prevent UI freezing, `AppContext` uses a worker-thread pattern:
 
 ## LocalStore
 
-**File:** [LocalStoreService.cpp](file:///Users/vallewillian/www/sofa-studio/src/core/LocalStoreService.cpp)
+**File:** [LocalStoreService.cpp](src/core/LocalStoreService.cpp)
 
 Local persistence is handled by an SQLite database (`sofa.db`) stored in the user's standard data location (e.g., `~/Library/Application Support/sofa-studio/`).
 
@@ -38,7 +38,7 @@ Local persistence is handled by an SQLite database (`sofa.db`) stored in the use
 
 ## Universal Data Model (UDM)
 
-**File:** [UDM.h](file:///Users/vallewillian/www/sofa-studio/src/core/udm/UDM.h)
+**File:** [UDM.h](src/core/udm/UDM.h)
 
 UDM provides a common language for all modules.
 
@@ -54,7 +54,7 @@ UDM provides a common language for all modules.
 
 ## Secrets Management
 
-**File:** [SimpleSecretsService.cpp](file:///Users/vallewillian/www/sofa-studio/src/core/SimpleSecretsService.cpp)
+**File:** [SimpleSecretsService.cpp](src/core/SimpleSecretsService.cpp)
 
 Currently, the MVP uses a simple in-memory or obfuscated file storage for passwords.
 *   **Goal**: Abstract the OS keychain (Keychain on macOS, Credential Manager on Windows).

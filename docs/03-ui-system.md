@@ -1,53 +1,88 @@
 # UI System
 
-The User Interface is built with Qt Quick (QML) and controls the application flow.
+Sofa Studio is a database client built with Qt Quick (QML), focusing on top-tier UI/UX for technical software while maintaining a lean and extensible core.
 
-## Structure
+## UI/UX Premises
 
-*   **`Main.qml`**: The entry point. It manages the global `StackLayout` or `Loader` state (Home vs Table View vs SQL Console).
-*   **`AppSidebar`**: Persistent navigation rail on the left.
-*   **`AppTabs`**: (If implemented) Manages open query/table sessions.
+*   **UI/UX is a Priority**: The initial MVP proved the core functionality; now the focus is on transforming the experience into a benchmark for quality.
+*   **macOS-First, Without Breaking Cross-Platform**: We use macOS as the reference for visual patterns and behavior, but maintain full compatibility with Windows and Linux.
+*   **Platform-Specific Enhancements are Allowed**: When a superior visual feature or interaction exists on macOS, we may adopt it with a simple functional fallback for other platforms.
+*   **Dark Theme by Default**: In the short term, we refine the dark mode; in the future, we will expand to multiple themes using the same token system.
+*   **Custom Visuals (Non-"Generic Qt")**: We avoid relying on default Qt/Controls visuals; we build a consistent identity across all platforms.
+*   **Custom Components for Critical UX**: Relevant components must be custom-built (like the `DataGrid`) for quality, performance, and consistency.
+*   **Relevant Components are Dedicated Types**: Each relevant custom component must exist as an isolated type (QML file) and, when necessary, a C++ backing class.
+*   **Low Dependency on Complex External Components**: We prefer implementing essential components internally to maintain control over design and behavior.
+*   **Component Documentation**: Every relevant custom component must have its own documentation to guide evolution and maintain consistency.
 
-## Theming
+## Structure (Shell)
 
-**File:** [Theme.qml](file:///Users/vallewillian/www/sofa-studio/src/ui/Theme.qml)
+*   **Entry Point**: [Main.qml](apps/desktop/qml/Main.qml) controls the root layout, navigation, and "sessions" (tabs).
+*   **Design System / Shared Components**: [src/ui](src/ui) contains reusable components (e.g., `AppButton`, `AppTabs`, `AppSidebar`).
+*   **Data Flow**: The UI calls `Q_INVOKABLE` methods on `AppContext` and reacts to signals (the Core never calls the UI directly).
 
-A singleton object (`Theme`) provides semantic color definitions. Hardcoded hex values should be avoided in components.
+## Theming (Tokens)
 
-*   `Theme.background`: Main app background.
-*   `Theme.surface`: Cards, sidebars, headers.
-*   `Theme.accent`: Primary action color (Blue).
-*   `Theme.textPrimary` / `Theme.textSecondary`: Typography.
+**File:** [Theme.qml](src/ui/Theme.qml)
 
-## Key Components
+`Theme` is a singleton of semantic tokens (colors, spacing, sizes). Components should not "invent" visual values on their own.
+
+*   **No Hardcoded Hex in Components**: Colors and sizes must come from `Theme` (or tokens derived from it).
+*   **Semantic Tokens, Not "Raw"**: Prefer `surface`, `border`, `textPrimary` over "gray700".
+*   **Dark First**: New components must be designed with contrast, states, and borders tailored for the dark theme.
+
+## Multi-Platform Strategy
+
+*   **Consistent Behavior**: Layout, density, states (hover/focus/pressed/disabled), and micro-interactions must remain equivalent across OSs.
+*   **Targeted OS Adaptation**: Differences are acceptable when they elevate quality (especially on macOS), provided there is a functional and visually coherent fallback on Windows/Linux.
+*   **No Native Style Dependency**: The goal is a unique identity; when using OS-specific APIs/effects, the result should feel like "Sofa", not a "system theme".
+
+## Key Components (Current)
 
 ### DataGrid
-**File:** [DataGrid.qml](file:///Users/vallewillian/www/sofa-studio/src/ui/DataGrid.qml)
-A wrapper around the C++ `DataGridEngine`.
-*   **Properties**: `engine` (reference to C++ object), `controlsVisible`.
-*   **Internals**: Uses `DataGridView` (C++ item) for the actual grid area and standard QML `ScrollBar`s for navigation.
+**File:** [DataGrid.qml](src/ui/DataGrid.qml)
+
+QML wrapper for the C++ engine (`DataGridEngine`) for performance and virtualization.
+
+*   **API**: `engine` (C++ object), `controlsVisible`.
+*   **Rendering**: The main area is C++ (e.g., `DataGridView`) and navigation uses QML components (e.g., `ScrollBar`).
 
 ### SqlConsole
-**File:** [SqlConsole.qml](file:///Users/vallewillian/www/sofa-studio/src/ui/SqlConsole.qml)
-A split-view component:
-*   **Top**: `TextArea` for SQL input.
-*   **Bottom**: `DataGrid` for results.
-*   **Logic**: Handles `Cmd+Enter` to run, `Esc` to cancel. Manages loading states and error messages.
+**File:** [SqlConsole.qml](src/ui/SqlConsole.qml)
+
+SQL console with input and results.
+
+*   **Layout**: Editor on top and `DataGrid` on the bottom.
+*   **Interactions**: `Cmd+Enter` to run, `Esc` to cancel.
+*   **States**: Loading, error, and empty must be treated as first-class states (clear UI without "flickering").
 
 ### ViewEditor
-**File:** [ViewEditor.qml](file:///Users/vallewillian/www/sofa-studio/src/ui/ViewEditor.qml)
-Allows users to customize how a table is displayed.
-*   **Input**: `tableSchema` (JSON).
-*   **Output**: Modified JSON definition.
-*   **Persistence**: Saves changes to `LocalStore` via `App.saveView()`.
+**File:** [ViewEditor.qml](src/ui/ViewEditor.qml)
 
-## Signal Flow Example: "Run Query"
+"Beauty Mode" editor to customize table visualization.
 
-1.  `SqlConsole` calls `App.runQueryAsync()`.
-2.  `SqlConsole` listens to `Connections { target: App }`.
-3.  `onSqlStarted`: Sets `running = true`, shows loading spinner.
+*   **Input**: `tableSchema` (JSON / variant).
+*   **Output**: Modified definition.
+*   **Persistence**: Saves to `LocalStore` via `App.saveView()`.
+
+## Component Documentation (Required)
+
+Every relevant custom component must have its own document in `docs/` describing:
+
+1.  **Purpose and Scope** (what it solves and what it doesn't).
+2.  **Public API** (properties, signals, methods, expected models).
+3.  **States and Transitions** (loading/empty/error; hover/focus/pressed; enabled/disabled).
+4.  **Theme Rules** (tokens used and how the component reacts to themes).
+5.  **Platform Notes** (OS-specific differences and fallback).
+6.  **Accessibility and Keyboard** (focus, navigation, shortcuts, and proper screen reading).
+7.  **Performance** (expected costs; when to move to C++; virtualization when applicable).
+
+## Example Flow: "Run Query"
+
+1.  `SqlConsole` calls `App.runQueryAsync(...)`.
+2.  `SqlConsole` listens for signals via `Connections { target: App }`.
+3.  `onSqlStarted`: Enters execution state (loading UI).
 4.  `onSqlFinished`:
-    *   Sets `running = false`.
-    *   Calls `gridEngine.loadFromVariant(result)` to populate the C++ grid model.
-    *   Updates status bar with row count and execution time.
-5.  `onSqlError`: Displays error banner.
+    *   Exits execution state.
+    *   Populates the grid (e.g., `gridEngine.loadFromVariant(result)`).
+    *   Updates indicators (rows / time).
+5.  `onSqlError`: Displays error state with clear message and possible action (when applicable).

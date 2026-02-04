@@ -1,7 +1,7 @@
 # DataGrid Engine
 
 **Namespace**: `Sofa::DataGrid`
-**Path**: [src/datagrid/](file:///Users/vallewillian/www/sofa-studio/src/datagrid/)
+**Path**: [src/datagrid/](src/datagrid/)
 
 The DataGrid Engine is a high-performance, C++ based grid component designed to handle large datasets more efficiently than standard QML `TableView`.
 
@@ -10,7 +10,7 @@ The DataGrid Engine is a high-performance, C++ based grid component designed to 
 The system is split into the **Engine** (Logic/Model) and the **View** (Rendering).
 
 ### 1. DataGridEngine (The Model)
-**File:** [DataGridEngine.cpp](file:///Users/vallewillian/www/sofa-studio/src/datagrid/DataGridEngine.cpp)
+**File:** [DataGridEngine.cpp](src/datagrid/DataGridEngine.cpp)
 
 A `QObject` subclass exposed to QML. It holds the "Single Source of Truth" for the grid data.
 
@@ -24,7 +24,7 @@ A `QObject` subclass exposed to QML. It holds the "Single Source of Truth" for t
     *   `rowCount()`, `columnCount()`, `data(row, col)`: Accessors for the renderer.
 
 ### 2. DataGridView (The Renderer)
-**File:** [DataGridView.cpp](file:///Users/vallewillian/www/sofa-studio/src/datagrid/DataGridView.cpp)
+**File:** [DataGridView.cpp](src/datagrid/DataGridView.cpp)
 
 A `QQuickPaintedItem` subclass. This is where the pixels are drawn.
 
@@ -38,7 +38,7 @@ A `QQuickPaintedItem` subclass. This is where the pixels are drawn.
     *   Calculates row/column from X/Y coordinates.
 
 ### 3. QML Integration (`DataGrid.qml`)
-**File:** [DataGrid.qml](file:///Users/vallewillian/www/sofa-studio/src/ui/DataGrid.qml)
+**File:** [DataGrid.qml](src/ui/DataGrid.qml)
 
 Combines the C++ Renderer with QML controls.
 *   **ScrollBars**: Standard `ScrollBar` controls are bound to the `DataGridView`'s `contentX`/`contentY`.

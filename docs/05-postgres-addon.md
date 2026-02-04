@@ -47,7 +47,7 @@ Handles SQL execution.
     Executes `SELECT pg_backend_pid()` immediately after connection to store the Process ID for cancellation.
 
 ### 5. Cancellation
-**File:** [IConnectionProvider.h](file:///Users/vallewillian/www/sofa-studio/src/core/addons/IAddon.h)
+**File:** [IConnectionProvider.h](src/core/addons/IAddon.h)
 
 The `cancelQuery(pid)` method is critical for UX.
 *   **Mechanism**: It opens a **new, separate** connection to the database (since the main one is blocked by the running query).
