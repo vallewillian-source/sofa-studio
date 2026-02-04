@@ -149,4 +149,102 @@ bool AppContext::testConnection(const QVariantMap& data)
     return success;
 }
 
+bool AppContext::openConnection(int id)
+{
+    if (!m_localStore || !m_addonHost) return false;
+    
+    // 1. Find connection data
+    auto connections = m_localStore->getAllConnections();
+    ConnectionData targetConn;
+    bool found = false;
+    for (const auto& conn : connections) {
+        if (conn.id == id) {
+            targetConn = conn;
+            found = true;
+            break;
+        }
+    }
+    
+    if (!found) {
+        m_logger->error("Connection ID not found: " + QString::number(id));
+        return false;
+    }
+    
+    // 2. Get driver (hardcoded postgres for now)
+    QString driverId = "postgres";
+    if (!m_addonHost->hasAddon(driverId)) {
+        m_logger->error("Driver not found: " + driverId);
+        return false;
+    }
+    
+    auto addon = m_addonHost->getAddon(driverId);
+    
+    // 3. Create and open connection
+    if (m_currentConnection && m_currentConnection->isOpen()) {
+        closeConnection();
+    }
+    
+    m_currentConnection = addon->createConnection();
+    
+    // Retrieve password if secretRef exists (Mock: pass empty or anything)
+    QString password = ""; // TODO: fetch from SecretsService
+    
+    bool success = m_currentConnection->open(targetConn.host, targetConn.port, targetConn.database, targetConn.user, password);
+    
+    if (success) {
+        m_currentConnectionId = id;
+        m_logger->info("Opened connection: " + targetConn.name);
+        emit connectionOpened(id);
+        emit activeConnectionIdChanged();
+    } else {
+        m_logger->error("Failed to open connection: " + m_currentConnection->lastError());
+        m_currentConnection.reset();
+        m_currentConnectionId = -1;
+        emit activeConnectionIdChanged();
+    }
+    
+    return success;
+}
+
+void AppContext::closeConnection()
+{
+    if (m_currentConnection && m_currentConnection->isOpen()) {
+        m_currentConnection->close();
+    }
+    m_currentConnection.reset();
+    m_currentConnectionId = -1;
+    emit connectionClosed();
+    emit activeConnectionIdChanged();
+}
+
+QStringList AppContext::getSchemas()
+{
+    QStringList list;
+    if (!m_currentConnection || !m_currentConnection->isOpen()) return list;
+    
+    auto catalog = m_currentConnection->catalog();
+    if (catalog) {
+        auto schemas = catalog->listSchemas();
+        for (const auto& s : schemas) {
+            list.append(s);
+        }
+    }
+    return list;
+}
+
+QStringList AppContext::getTables(const QString& schema)
+{
+    QStringList list;
+    if (!m_currentConnection || !m_currentConnection->isOpen()) return list;
+    
+    auto catalog = m_currentConnection->catalog();
+    if (catalog) {
+        auto tables = catalog->listTables(schema);
+        for (const auto& t : tables) {
+            list.append(t);
+        }
+    }
+    return list;
+}
+
 }

@@ -55,8 +55,20 @@ Rectangle {
             delegate: Rectangle {
                 width: ListView.view.width
                 height: 30
-                color: mouseArea.containsMouse ? Theme.surfaceHighlight : "transparent"
+                color: (modelData.id === App.activeConnectionId) ? Theme.surfaceHighlight : (mouseArea.containsMouse ? Theme.surfaceHighlight : "transparent")
                 
+                MouseArea {
+                    id: mouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (modelData.id !== App.activeConnectionId) {
+                            App.openConnection(modelData.id)
+                        }
+                    }
+                }
+
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.spacingMedium
@@ -65,8 +77,9 @@ Rectangle {
                     
                     Text {
                         text: modelData.name
-                        color: Theme.textPrimary
+                        color: (modelData.id === App.activeConnectionId) ? Theme.accent : Theme.textPrimary
                         font.pixelSize: 13
+                        font.bold: (modelData.id === App.activeConnectionId)
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                     }
@@ -101,7 +114,7 @@ Rectangle {
                 }
                 
                 MouseArea {
-                    id: mouseArea
+                    id: backgroundMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
                     propagateComposedEvents: true

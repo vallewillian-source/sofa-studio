@@ -17,6 +17,7 @@ qt_add_qml_module(SofaUI
         AppSidebar.qml
         AppTabs.qml
         ConnectionDialog.qml
+        DatabaseExplorer.qml
     )
 
 target_include_directories(SofaUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

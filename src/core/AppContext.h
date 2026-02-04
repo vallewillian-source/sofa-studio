@@ -15,6 +15,7 @@ class AppContext : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
     Q_PROPERTY(QVariantList availableDrivers READ availableDrivers CONSTANT)
+    Q_PROPERTY(int activeConnectionId READ activeConnectionId NOTIFY activeConnectionIdChanged)
 
 public:
     explicit AppContext(std::shared_ptr<ICommandService> commandService,
@@ -35,8 +36,18 @@ public:
     QVariantList availableDrivers() const;
     Q_INVOKABLE bool testConnection(const QVariantMap& data);
 
+    // Active Session API
+    int activeConnectionId() const { return m_currentConnectionId; }
+    Q_INVOKABLE bool openConnection(int id);
+    Q_INVOKABLE void closeConnection();
+    Q_INVOKABLE QStringList getSchemas();
+    Q_INVOKABLE QStringList getTables(const QString& schema);
+
 signals:
     void connectionsChanged();
+    void activeConnectionIdChanged();
+    void connectionOpened(int id);
+    void connectionClosed();
 
 private:
     std::shared_ptr<ICommandService> m_commandService;
@@ -44,6 +55,9 @@ private:
     std::shared_ptr<ILocalStoreService> m_localStore;
     std::shared_ptr<ISecretsService> m_secrets;
     std::shared_ptr<AddonHost> m_addonHost;
+    
+    std::shared_ptr<IConnectionProvider> m_currentConnection;
+    int m_currentConnectionId = -1;
     
     void refreshConnections();
 };

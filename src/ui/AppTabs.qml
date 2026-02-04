@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 TabBar {
     id: control
+    property var tabsModel: null // ListModel
     
     background: Rectangle {
         color: Theme.surface
@@ -18,60 +19,35 @@ TabBar {
         }
     }
 
-    TabButton {
-        text: "Home"
-        width: implicitWidth + Theme.spacingXLarge
+    Repeater {
+        model: control.tabsModel
         
-        contentItem: Text {
-            text: parent.text
-            font: parent.font
-            opacity: enabled ? 1.0 : 0.3
-            color: parent.checked ? Theme.textPrimary : Theme.textSecondary
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
-
-        background: Rectangle {
-            implicitHeight: Theme.tabBarHeight
-            color: parent.checked ? Theme.background : "transparent"
+        TabButton {
+            text: model.title
+            width: implicitWidth + Theme.spacingXLarge
             
-            // Top highlight line for active tab
-            Rectangle {
-                width: parent.width
-                height: 2
-                color: Theme.accent
-                anchors.top: parent.top
-                visible: parent.parent.checked
+            contentItem: Text {
+                text: parent.text
+                font: parent.font
+                opacity: enabled ? 1.0 : 0.3
+                color: parent.checked ? Theme.textPrimary : Theme.textSecondary
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
             }
-        }
-    }
 
-    TabButton {
-        text: "Query 1"
-        width: implicitWidth + Theme.spacingXLarge
-        
-        contentItem: Text {
-            text: parent.text
-            font: parent.font
-            opacity: enabled ? 1.0 : 0.3
-            color: parent.checked ? Theme.textPrimary : Theme.textSecondary
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
-
-        background: Rectangle {
-            implicitHeight: Theme.tabBarHeight
-            color: parent.checked ? Theme.background : "transparent"
-            
-            // Top highlight line for active tab
-            Rectangle {
-                width: parent.width
-                height: 2
-                color: Theme.accent
-                anchors.top: parent.top
-                visible: parent.parent.checked
+            background: Rectangle {
+                implicitHeight: Theme.tabBarHeight
+                color: parent.checked ? Theme.background : "transparent"
+                
+                // Top highlight line for active tab
+                Rectangle {
+                    width: parent.width
+                    height: 2
+                    color: Theme.accent
+                    anchors.top: parent.top
+                    visible: parent.parent.checked
+                }
             }
         }
     }
