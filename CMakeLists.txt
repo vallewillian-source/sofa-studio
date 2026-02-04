@@ -9,4 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
 
 # Add subdirectories
+add_subdirectory(src/core)
+add_subdirectory(src/datagrid)
+add_subdirectory(src/ui)
+add_subdirectory(addons/postgres)
 add_subdirectory(apps/desktop)

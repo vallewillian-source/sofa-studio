@@ -21,6 +21,10 @@ qt_add_qml_module(sofa-desktop
 
 target_link_libraries(sofa-desktop
     PRIVATE Qt6::Quick
+    PRIVATE SofaCore
+    PRIVATE SofaDataGrid
+    PRIVATE SofaUI
+    PRIVATE SofaAddonPostgres
 )
 
 set_target_properties(sofa-desktop PROPERTIES OUTPUT_NAME "sofa-studio")
