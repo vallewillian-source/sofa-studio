@@ -13,10 +13,12 @@
 #include "SecretsServiceStub.h"
 #include "AddonHost.h"
 #include "SofaAddonPostgres.h"
+#include "SofaDataGrid.h"
 
 using namespace Qt::StringLiterals;
 using namespace Sofa::Core;
 using namespace Sofa::Addons::Postgres;
+using namespace Sofa::DataGrid;
 
 int main(int argc, char *argv[])
 {
@@ -25,6 +27,10 @@ int main(int argc, char *argv[])
 
     // Bootstrap Services
     auto logger = std::make_shared<ConsoleLogger>();
+    
+    // Init Modules
+    DataGridModule::init();
+
     auto commandService = std::make_shared<CommandService>(logger);
     auto localStore = std::make_shared<LocalStoreService>(logger);
     auto secrets = std::make_shared<SecretsServiceStub>();

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import sofa.ui
+import sofa.datagrid 1.0
 
 ApplicationWindow {
     width: 1024
@@ -111,21 +112,15 @@ ApplicationWindow {
         id: tableComponent
         Rectangle {
             color: Theme.background
-            Column {
-                anchors.centerIn: parent
-                spacing: 20
-                Text {
-                    text: "Table View: " + parent.tableName
-                    font.pixelSize: 24
-                    color: Theme.textPrimary
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-                Text {
-                    text: "(DataGrid placeholder for Etapa 6)"
-                    font.pixelSize: 14
-                    color: Theme.textSecondary
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
+            
+            DataGridEngine {
+                id: gridEngine
+                Component.onCompleted: loadMockData()
+            }
+
+            DataGrid {
+                anchors.fill: parent
+                engine: gridEngine
             }
         }
     }

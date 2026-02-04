@@ -1,6 +1,12 @@
+set(CMAKE_AUTOMOC ON)
+
 qt_add_library(SofaDataGrid STATIC
     SofaDataGrid.h
     SofaDataGrid.cpp
+    DataGridEngine.h
+    DataGridEngine.cpp
+    DataGridView.h
+    DataGridView.cpp
 )
 
 target_link_libraries(SofaDataGrid PUBLIC Qt6::Quick Qt6::Core SofaCore)
