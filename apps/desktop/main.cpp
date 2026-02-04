@@ -9,6 +9,8 @@
 #include "ConsoleLogger.h"
 #include "CommandService.h"
 #include "AppContext.h"
+#include "LocalStoreService.h"
+#include "SecretsServiceStub.h"
 
 using namespace Qt::StringLiterals;
 using namespace Sofa::Core;
@@ -21,13 +23,15 @@ int main(int argc, char *argv[])
     // Bootstrap Services
     auto logger = std::make_shared<ConsoleLogger>();
     auto commandService = std::make_shared<CommandService>(logger);
+    auto localStore = std::make_shared<LocalStoreService>(logger);
+    auto secrets = std::make_shared<SecretsServiceStub>();
 
     // Register a test command
     commandService->registerCommand("test.hello", "Hello Command", [logger]() {
         logger->info("Hello from Command System!");
     });
 
-    auto appContext = std::make_shared<AppContext>(commandService, logger);
+    auto appContext = std::make_shared<AppContext>(commandService, logger, localStore, secrets);
 
     QQmlApplicationEngine engine;
 

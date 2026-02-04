@@ -1,5 +1,7 @@
 set(CMAKE_AUTOMOC ON)
 
+find_package(Qt6 REQUIRED COMPONENTS Sql)
+
 qt_add_library(SofaCore STATIC
     SofaCore.h
     SofaCore.cpp
@@ -11,8 +13,13 @@ qt_add_library(SofaCore STATIC
     CommandService.cpp
     AppContext.h
     AppContext.cpp
+    ILocalStoreService.h
+    LocalStoreService.h
+    LocalStoreService.cpp
+    ISecretsService.h
+    SecretsServiceStub.h
 )
 
-target_link_libraries(SofaCore PUBLIC Qt6::Core)
+target_link_libraries(SofaCore PUBLIC Qt6::Core Qt6::Sql)
 
 target_include_directories(SofaCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

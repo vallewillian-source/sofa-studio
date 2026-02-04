@@ -19,6 +19,11 @@ Rectangle {
         anchors.bottom: parent.bottom
     }
 
+    ConnectionDialog {
+        id: connectionDialog
+        anchors.centerIn: Overlay.overlay
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -40,12 +45,73 @@ Rectangle {
             }
         }
 
-        // List Placeholder
-        Item {
+        // Connections List
+        ListView {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
+            model: App.connections
             
+            delegate: Rectangle {
+                width: ListView.view.width
+                height: 30
+                color: mouseArea.containsMouse ? Theme.surfaceHighlight : "transparent"
+                
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.spacingMedium
+                    anchors.rightMargin: Theme.spacingMedium
+                    spacing: Theme.spacingSmall
+                    
+                    Text {
+                        text: modelData.name
+                        color: Theme.textPrimary
+                        font.pixelSize: 13
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    
+                    // Edit Button (Text for now)
+                    Text {
+                        text: "✎"
+                        color: Theme.textSecondary
+                        visible: mouseArea.containsMouse
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                connectionDialog.resetFields()
+                                connectionDialog.load(modelData)
+                                connectionDialog.open()
+                            }
+                        }
+                    }
+
+                    // Delete Button
+                    Text {
+                        text: "✖"
+                        color: Theme.textSecondary
+                        visible: mouseArea.containsMouse
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: App.deleteConnection(modelData.id)
+                        }
+                    }
+                }
+                
+                MouseArea {
+                    id: mouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    propagateComposedEvents: true
+                    onClicked: mouse.accepted = false // Pass through
+                }
+            }
+            
+            // Empty State
             Text {
+                visible: parent.count === 0
                 text: "No connections"
                 color: Theme.textSecondary
                 font.italic: true
@@ -64,7 +130,10 @@ Rectangle {
                 isPrimary: true
                 anchors.centerIn: parent
                 width: parent.width - (Theme.spacingMedium * 2)
-                onClicked: console.log("New Connection clicked")
+                onClicked: {
+                    connectionDialog.resetFields()
+                    connectionDialog.open()
+                }
             }
         }
     }
