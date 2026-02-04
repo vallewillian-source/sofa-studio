@@ -150,6 +150,16 @@ ApplicationWindow {
     Connections {
         target: App
         function onActiveConnectionIdChanged() { 
+            // If connection closed (id == -1), close all tabs except Home
+            if (App.activeConnectionId === -1) {
+                // Iterate backwards to avoid index issues when removing
+                for (var i = tabModel.count - 1; i >= 0; i--) {
+                    if (tabModel.get(i).type !== "home") {
+                        tabModel.remove(i)
+                    }
+                }
+                appTabs.currentIndex = 0 // Ensure Home is active
+            }
             saveState() 
         }
     }
