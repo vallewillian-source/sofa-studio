@@ -148,15 +148,94 @@ ApplicationWindow {
             property string schema: "public"
             property string tableName: ""
             property string errorMessage: ""
+            
+            // View State
+            property var views: []
+            property int currentViewId: -1
+            property var currentViewData: null
+            property var rawColumns: [] // Store raw columns for ViewEditor
+            
             color: Theme.background
             
             DataGridEngine {
                 id: gridEngine
             }
+            
+            // Toolbar
+            Rectangle {
+                id: toolbar
+                height: 40
+                width: parent.width
+                color: Theme.surface
+                border.color: Theme.border
+                border.width: 1
+                z: 10
+                
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    spacing: 10
+                    
+                    Label { text: "View:" }
+                    
+                    ComboBox {
+                        id: viewSelector
+                        Layout.preferredWidth: 150
+                        textRole: "name"
+                        valueRole: "id"
+                        model: ListModel { id: viewModel }
+                        
+                        onActivated: (index) => {
+                            var viewId = viewModel.get(index).id
+                            tableRoot.applyView(viewId)
+                        }
+                    }
+                    
+                    AppButton {
+                        text: "New View"
+                        onClicked: viewEditor.openEditor(tableRoot.rawColumns, null)
+                    }
+                    
+                    AppButton {
+                        text: "Edit"
+                        enabled: tableRoot.currentViewId !== -1
+                        onClicked: viewEditor.openEditor(tableRoot.rawColumns, tableRoot.currentViewData)
+                    }
+                    
+                    Item { Layout.fillWidth: true }
+                    
+                    AppButton {
+                        text: "Refresh"
+                        onClicked: tableRoot.loadData()
+                    }
+                }
+            }
 
             DataGrid {
-                anchors.fill: parent
+                anchors.top: toolbar.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
                 engine: gridEngine
+            }
+            
+            ViewEditor {
+                id: viewEditor
+                anchors.centerIn: parent
+                onViewSaved: (data) => {
+                    data.sourceRef = tableRoot.schema + "." + tableRoot.tableName
+                    var newId = App.saveView(data)
+                    if (newId !== -1) {
+                        tableRoot.loadViews()
+                        tableRoot.applyView(newId)
+                    }
+                }
+                
+                function openEditor(cols, view) {
+                    load(cols, view)
+                    open()
+                }
             }
 
             Text {
@@ -167,15 +246,64 @@ ApplicationWindow {
                 anchors.centerIn: parent
             }
 
+            function loadViews() {
+                var list = App.getViews(schema, tableName)
+                viewModel.clear()
+                viewModel.append({ "id": -1, "name": "Default", "definition": "" })
+                
+                for (var i = 0; i < list.length; i++) {
+                    viewModel.append(list[i])
+                }
+                
+                // Restore selection
+                for (var j = 0; j < viewModel.count; j++) {
+                    if (viewModel.get(j).id === currentViewId) {
+                        viewSelector.currentIndex = j
+                        return
+                    }
+                }
+                viewSelector.currentIndex = 0
+            }
+            
+            function applyView(viewId) {
+                currentViewId = viewId
+                currentViewData = null
+                
+                var viewDef = null
+                for (var i = 0; i < viewModel.count; i++) {
+                    if (viewModel.get(i).id === viewId) {
+                        currentViewData = viewModel.get(i)
+                        if (currentViewData.definition) {
+                            try {
+                                viewDef = JSON.parse(currentViewData.definition)
+                            } catch(e) { console.error(e) }
+                        }
+                        break
+                    }
+                }
+                
+                // Reload grid with view applied
+                // Note: ideally we don't re-fetch data, just re-apply schema.
+                // But for now, let's just trigger a "refresh" of the engine schema if we have the data.
+                // Or simpler: loadData() again? No, expensive.
+                // Let's pass the viewDef to engine? 
+                // Engine doesn't know about JSON.
+                // We should parse viewDef and update gridEngine schema.
+                
+                if (gridEngine.columnCount > 0) {
+                    gridEngine.applyView(viewDef ? JSON.stringify(viewDef) : "")
+                }
+            }
+
             function loadData() {
                 tableRoot.errorMessage = ""
                 if (tableName) {
+                    loadViews() // Refresh views list
+                    
                     console.log("\u001b[34m📥 Buscando dados\u001b[0m", schema + "." + tableName)
                     var data = App.getDataset(schema, tableName, 100, 0)
                     console.log("\u001b[32m✅ Dataset recebido\u001b[0m", "colunas=" + (data.columns ? data.columns.length : 0) + " linhas=" + (data.rows ? data.rows.length : 0))
-                    if (data.rows && data.rows.length > 0) {
-                        console.log("\u001b[35m🧪 Dataset primeira linha\u001b[0m", JSON.stringify(data.rows[0]))
-                    }
+                    
                     if (data.error) {
                         console.error("\u001b[31m❌ Dataset\u001b[0m", data.error)
                         tableRoot.errorMessage = data.error
@@ -187,7 +315,17 @@ ApplicationWindow {
                         gridEngine.clear()
                         return
                     }
+                    
+                    // Save raw columns for editor
+                    tableRoot.rawColumns = []
+                    for (var i = 0; i < data.columns.length; i++) {
+                        tableRoot.rawColumns.push(data.columns[i])
+                    }
+                    
                     gridEngine.loadFromVariant(data)
+                    
+                    // Re-apply current view if needed
+                    applyView(currentViewId)
                 } else {
                     tableRoot.errorMessage = "Tabela inválida."
                     gridEngine.clear()

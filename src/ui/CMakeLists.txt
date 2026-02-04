@@ -20,6 +20,7 @@ qt_add_qml_module(SofaUI
         DatabaseExplorer.qml
         DataGrid.qml
         SqlConsole.qml
+        ViewEditor.qml
     )
 
 target_include_directories(SofaUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

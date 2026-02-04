@@ -17,6 +17,7 @@ public:
     
     // Data Management
     Q_INVOKABLE void loadFromVariant(const QVariantMap& data);
+    Q_INVOKABLE void applyView(const QString& viewJson);
     void setSchema(const Sofa::Core::TableSchema& schema);
     void setData(const std::vector<std::vector<QVariant>>& rows);
     Q_INVOKABLE void clear();

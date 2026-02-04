@@ -2,6 +2,9 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
 
 namespace Sofa::DataGrid {
 
@@ -116,5 +119,42 @@ void DataGridEngine::loadFromVariant(const QVariantMap& data)
     setData(newRows);
     qInfo() << "\x1b[32m✅ DataGrid\x1b[0m colunas:" << columns.size() << "linhas:" << rows.size() << "rowsStored:" << newRows.size();
 }
+
+void DataGridEngine::applyView(const QString& viewJson)
+{
+    if (viewJson.isEmpty()) {
+        // Reset visibility/labels
+        for (auto& col : m_schema.columns) {
+            col.label = "";
+            col.visible = true;
+        }
+        emit layoutChanged();
+        return;
+    }
+    
+    QJsonDocument doc = QJsonDocument::fromJson(viewJson.toUtf8());
+    if (!doc.isArray()) return;
+    
+    QJsonArray arr = doc.array();
+    std::map<QString, QJsonObject> defMap;
+    for (const auto& val : arr) {
+        QJsonObject obj = val.toObject();
+        defMap[obj["name"].toString()] = obj;
+    }
+    
+    for (auto& col : m_schema.columns) {
+        if (defMap.count(col.name)) {
+            QJsonObject def = defMap[col.name];
+            if (def.contains("label")) col.label = def["label"].toString();
+            if (def.contains("visible")) col.visible = def["visible"].toBool(true);
+        } else {
+            // Reset to default
+            col.label = "";
+            col.visible = true;
+        }
+    }
+    emit layoutChanged();
+}
+
 
 }

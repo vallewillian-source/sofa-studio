@@ -24,6 +24,15 @@ struct QueryHistoryItem {
     QDateTime createdAt;
 };
 
+struct ViewData {
+    int id = -1;
+    int connectionId = -1;
+    QString sourceRef; // e.g. "public.testing"
+    QString name;
+    QString definitionJson; // JSON array of column configs
+    QDateTime createdAt;
+};
+
 class ILocalStoreService {
 public:
     virtual ~ILocalStoreService() = default;
@@ -35,6 +44,10 @@ public:
     
     virtual void saveQueryHistory(const QueryHistoryItem& item) = 0;
     virtual std::vector<QueryHistoryItem> getQueryHistory(int connectionId) = 0;
+    
+    virtual int saveView(const ViewData& data) = 0;
+    virtual std::vector<ViewData> getViews(int connectionId, const QString& sourceRef) = 0;
+    virtual void deleteView(int id) = 0;
 };
 
 }

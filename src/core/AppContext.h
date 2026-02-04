@@ -47,6 +47,11 @@ public:
     Q_INVOKABLE QVariantMap runQuery(const QString& queryText);
     Q_INVOKABLE QVariantList getQueryHistory(int connectionId);
     Q_INVOKABLE QVariantMap getDataset(const QString& schema, const QString& table, int limit = 100, int offset = 0);
+    
+    // Views API
+    Q_INVOKABLE QVariantList getViews(const QString& schema, const QString& table);
+    Q_INVOKABLE int saveView(const QVariantMap& viewData);
+    Q_INVOKABLE bool deleteView(int id);
 
 signals:
     void connectionsChanged();

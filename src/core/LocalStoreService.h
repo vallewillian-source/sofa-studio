@@ -19,6 +19,10 @@ public:
     void saveQueryHistory(const QueryHistoryItem& item) override;
     std::vector<QueryHistoryItem> getQueryHistory(int connectionId) override;
 
+    int saveView(const ViewData& data) override;
+    std::vector<ViewData> getViews(int connectionId, const QString& sourceRef) override;
+    void deleteView(int id) override;
+
 private:
     std::shared_ptr<ILogger> m_logger;
     QString m_dbPath;

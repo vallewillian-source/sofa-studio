@@ -46,7 +46,10 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
     double currentX = 0;
     
     for (int c = 0; c < m_engine->columnCount(); ++c) {
-        double w = m_engine->getColumn(c).displayWidth;
+        auto colInfo = m_engine->getColumn(c);
+        if (!colInfo.visible) continue;
+        
+        double w = colInfo.displayWidth;
         if (absoluteX >= currentX && absoluteX < currentX + w) {
             col = c;
             break;
@@ -179,6 +182,8 @@ void DataGridView::paint(QPainter* painter)
         
         for (int c = 0; c < cols; ++c) {
             auto col = m_engine->getColumn(c);
+            if (!col.visible) continue;
+            
             double colW = col.displayWidth;
             
             // Optimization: skip if col is out of view
@@ -214,6 +219,8 @@ void DataGridView::paint(QPainter* painter)
     double currentX = -m_contentX;
     for (int c = 0; c < cols; ++c) {
         auto col = m_engine->getColumn(c);
+        if (!col.visible) continue;
+        
         double colW = col.displayWidth;
         
         if (currentX + colW > 0 && currentX < w) {
@@ -227,7 +234,9 @@ void DataGridView::paint(QPainter* painter)
             painter->setPen(m_textColor);
             font.setBold(true);
             painter->setFont(font);
-            painter->drawText(cellRect.adjusted(5, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, col.name);
+            
+            QString headerText = col.label.isEmpty() ? col.name : col.label;
+            painter->drawText(cellRect.adjusted(5, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, headerText);
         }
         currentX += colW;
     }

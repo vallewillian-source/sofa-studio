@@ -299,7 +299,7 @@ QVariantMap AppContext::runQuery(const QString& queryText)
         for (const auto& val : row) {
             rowList.append(val);
         }
-        rows.append(rowList);
+        rows.append(QVariant(rowList));
     }
     result["rows"] = rows;
     
@@ -407,6 +407,50 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
     }
     
     return result;
+}
+
+QVariantList AppContext::getViews(const QString& schema, const QString& table)
+{
+    QVariantList list;
+    if (!m_localStore || m_currentConnectionId == -1) return list;
+    
+    QString sourceRef = schema + "." + table;
+    auto views = m_localStore->getViews(m_currentConnectionId, sourceRef);
+    
+    for (const auto& v : views) {
+        QVariantMap map;
+        map["id"] = v.id;
+        map["name"] = v.name;
+        map["definition"] = v.definitionJson;
+        map["createdAt"] = v.createdAt;
+        list.append(map);
+    }
+    return list;
+}
+
+int AppContext::saveView(const QVariantMap& viewData)
+{
+    if (!m_localStore || m_currentConnectionId == -1) return -1;
+    
+    ViewData data;
+    data.id = viewData.value("id", -1).toInt();
+    data.connectionId = m_currentConnectionId;
+    data.sourceRef = viewData.value("sourceRef").toString();
+    data.name = viewData.value("name").toString();
+    data.definitionJson = viewData.value("definition").toString();
+    
+    int id = m_localStore->saveView(data);
+    if (id != -1 && m_logger) {
+        m_logger->info("Saved view: " + data.name);
+    }
+    return id;
+}
+
+bool AppContext::deleteView(int id)
+{
+    if (!m_localStore) return false;
+    m_localStore->deleteView(id);
+    return true;
 }
 
 }
