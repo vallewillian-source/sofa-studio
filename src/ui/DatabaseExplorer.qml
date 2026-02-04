@@ -7,7 +7,7 @@ Rectangle {
     color: Theme.surface
     
     property int currentConnectionId: -1
-    signal tableClicked(string tableName)
+    signal tableClicked(string schema, string table)
     signal newQueryClicked()
     
     function refresh() {
@@ -97,6 +97,8 @@ Rectangle {
             model: schemaModel
             
             delegate: Column {
+                id: schemaDelegate
+                property string schemaName: model.name
                 width: ListView.view.width
                 property bool isExpanded: model.expanded
                 property var tableList: model.tables
@@ -166,7 +168,8 @@ Rectangle {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                root.tableClicked(name)
+                                console.log("\u001b[35m🗂️ Abrindo tabela\u001b[0m", schemaDelegate.schemaName + "." + name)
+                                root.tableClicked(schemaDelegate.schemaName, name)
                             }
                         }
                     }

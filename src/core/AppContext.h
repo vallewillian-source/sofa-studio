@@ -46,6 +46,7 @@ public:
     // Query API
     Q_INVOKABLE QVariantMap runQuery(const QString& queryText);
     Q_INVOKABLE QVariantList getQueryHistory(int connectionId);
+    Q_INVOKABLE QVariantMap getDataset(const QString& schema, const QString& table, int limit = 100, int offset = 0);
 
 signals:
     void connectionsChanged();

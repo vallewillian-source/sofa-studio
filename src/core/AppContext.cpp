@@ -188,8 +188,11 @@ bool AppContext::openConnection(int id)
     
     m_currentConnection = addon->createConnection();
     
-    // Retrieve password if secretRef exists (Mock: pass empty or anything)
-    QString password = ""; // TODO: fetch from SecretsService
+    // Retrieve password if secretRef exists
+    QString password = "";
+    if (m_secrets && !targetConn.secretRef.isEmpty()) {
+        password = m_secrets->getSecret(targetConn.secretRef);
+    }
     
     bool success = m_currentConnection->open(targetConn.host, targetConn.port, targetConn.database, targetConn.user, password);
     
@@ -316,6 +319,60 @@ QVariantList AppContext::getQueryHistory(int connectionId)
         list.append(map);
     }
     return list;
+}
+
+QVariantMap AppContext::getDataset(const QString& schema, const QString& table, int limit, int offset)
+{
+    QVariantMap result;
+    if (!m_currentConnection || !m_currentConnection->isOpen()) return result;
+    
+    QString sql = QString("SELECT * FROM \"%1\".\"%2\" LIMIT %3 OFFSET %4")
+                      .arg(schema).arg(table).arg(limit).arg(offset);
+    
+    if (m_logger) {
+        m_logger->info("\x1b[36m🧭 Dataset\x1b[0m schema=" + schema + " tabela=" + table + " limit=" + QString::number(limit) + " offset=" + QString::number(offset));
+    }
+    
+    DatasetRequest request;
+    request.limit = limit;
+    
+    auto queryProvider = m_currentConnection->query();
+    if (!queryProvider) {
+        if (m_logger) {
+            m_logger->error("\x1b[31m❌ Dataset\x1b[0m query provider indisponível");
+        }
+        return result;
+    }
+    
+    auto page = queryProvider->execute(sql, request);
+    if (m_logger && !page.warning.isEmpty()) {
+        m_logger->warning("\x1b[33m⚠️ Dataset\x1b[0m " + page.warning);
+    }
+    
+    QVariantList columns;
+    for (const auto& col : page.columns) {
+        QVariantMap c;
+        c["name"] = col.name;
+        c["type"] = col.rawType;
+        columns.append(c);
+    }
+    result["columns"] = columns;
+    
+    QVariantList rows;
+    for (const auto& row : page.rows) {
+        QVariantList r;
+        for (const auto& val : row) {
+            r.append(val);
+        }
+        rows.append(r);
+    }
+    result["rows"] = rows;
+    
+    if (m_logger) {
+        m_logger->info("\x1b[32m✅ Dataset\x1b[0m colunas=" + QString::number(page.columns.size()) + " linhas=" + QString::number(page.rows.size()) + " hasMore=" + (page.hasMore ? "true" : "false"));
+    }
+    
+    return result;
 }
 
 }

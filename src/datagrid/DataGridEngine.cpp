@@ -1,6 +1,7 @@
 #include "DataGridEngine.h"
 #include <QString>
 #include <QVariantList>
+#include <QDebug>
 
 namespace Sofa::DataGrid {
 
@@ -10,6 +11,7 @@ DataGridEngine::DataGridEngine(QObject* parent) : QObject(parent)
 
 void DataGridEngine::loadMockData()
 {
+    qInfo() << "\x1b[33m🧪 DataGrid\x1b[0m carregando dados mock";
     Sofa::Core::TableSchema schema;
     schema.name = "mock_table";
     
@@ -135,6 +137,7 @@ void DataGridEngine::loadFromVariant(const QVariantMap& data)
         newRows.push_back(newRow);
     }
     setData(newRows);
+    qInfo() << "\x1b[32m✅ DataGrid\x1b[0m colunas:" << columns.size() << "linhas:" << rows.size();
 }
 
 }

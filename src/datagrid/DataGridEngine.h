@@ -16,7 +16,6 @@ public:
     explicit DataGridEngine(QObject* parent = nullptr);
     
     // Data Management
-    Q_INVOKABLE void loadMockData(); // Helper for Etapa 7
     Q_INVOKABLE void loadFromVariant(const QVariantMap& data);
     void setSchema(const Sofa::Core::TableSchema& schema);
     void setData(const std::vector<std::vector<QVariant>>& rows);

@@ -112,14 +112,6 @@ Rectangle {
                         }
                     }
                 }
-                
-                MouseArea {
-                    id: backgroundMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    propagateComposedEvents: true
-                    onClicked: mouse.accepted = false // Pass through
-                }
             }
             
             // Empty State

@@ -10,7 +10,7 @@
 #include "CommandService.h"
 #include "AppContext.h"
 #include "LocalStoreService.h"
-#include "SecretsServiceStub.h"
+#include "SimpleSecretsService.h"
 #include "AddonHost.h"
 #include "SofaAddonPostgres.h"
 #include "SofaDataGrid.h"
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
     auto commandService = std::make_shared<CommandService>(logger);
     auto localStore = std::make_shared<LocalStoreService>(logger);
-    auto secrets = std::make_shared<SecretsServiceStub>();
+    auto secrets = std::make_shared<SimpleSecretsService>();
     auto addonHost = std::make_shared<AddonHost>(logger);
 
     // Register Addons

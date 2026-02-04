@@ -16,15 +16,17 @@ ApplicationWindow {
         ListElement { title: "Home"; type: "home" }
     }
     
-    function openTable(tableName) {
+    function openTable(schema, tableName) {
+        var title = "Table: " + schema + "." + tableName
+        console.log("\u001b[36m📌 Abrindo aba\u001b[0m", title)
         // Check if already open
         for (var i = 0; i < tabModel.count; i++) {
-            if (tabModel.get(i).title === "Table: " + tableName) {
+            if (tabModel.get(i).title === title) {
                 appTabs.currentIndex = i
                 return
             }
         }
-        tabModel.append({ "title": "Table: " + tableName, "type": "table", "tableName": tableName })
+        tabModel.append({ "title": title, "type": "table", "schema": schema, "tableName": tableName })
         appTabs.currentIndex = tabModel.count - 1
     }
 
@@ -48,8 +50,8 @@ ApplicationWindow {
             Layout.fillHeight: true
             Layout.preferredWidth: 250
             visible: App.activeConnectionId !== -1
-            onTableClicked: function(tableName) {
-                openTable(tableName)
+            onTableClicked: function(schema, tableName) {
+                openTable(schema, tableName)
             }
             onNewQueryClicked: openSqlConsole()
         }
@@ -80,10 +82,18 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         
-                        sourceComponent: model.type === "home" ? homeComponent : (model.type === "table" ? tableComponent : sqlComponent)
-                        
-                        // Pass properties to loaded item if needed
+                        sourceComponent: type === "home" ? homeComponent : (type === "table" ? tableComponent : sqlComponent)
+                        property string schema: model.schema || "public"
                         property string tableName: model.tableName || ""
+                        property string type: model.type || "home"
+                        onLoaded: {
+                            console.log("\u001b[36m🧭 Loader\u001b[0m", "type=" + type, "schema=" + schema, "table=" + tableName)
+                            if (item && type === "table") {
+                                item.schema = schema
+                                item.tableName = tableName
+                                item.loadData()
+                            }
+                        }
                     }
                 }
             }
@@ -124,16 +134,30 @@ ApplicationWindow {
     Component {
         id: tableComponent
         Rectangle {
+            id: tableRoot
+            property string schema: "public"
+            property string tableName: ""
             color: Theme.background
             
             DataGridEngine {
                 id: gridEngine
-                Component.onCompleted: loadMockData()
             }
 
             DataGrid {
                 anchors.fill: parent
                 engine: gridEngine
+            }
+
+            function loadData() {
+                if (tableName) {
+                    console.log("\u001b[34m📥 Buscando dados\u001b[0m", schema + "." + tableName)
+                    var data = App.getDataset(schema, tableName, 100, 0)
+                    console.log("\u001b[32m✅ Dataset recebido\u001b[0m", "colunas=" + (data.columns ? data.columns.length : 0) + " linhas=" + (data.rows ? data.rows.length : 0))
+                    gridEngine.loadFromVariant(data)
+                } else {
+                    console.log("\u001b[33m⚠️ Sem tabela, usando mock\u001b[0m")
+                    gridEngine.loadMockData()
+                }
             }
         }
     }

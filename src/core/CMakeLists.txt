@@ -18,6 +18,8 @@ qt_add_library(SofaCore STATIC
     LocalStoreService.cpp
     ISecretsService.h
     SecretsServiceStub.h
+    SimpleSecretsService.h
+    SimpleSecretsService.cpp
     udm/UDM.h
     addons/IAddon.h
     AddonHost.h
