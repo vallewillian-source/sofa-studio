@@ -92,7 +92,26 @@ Rectangle {
     ConnectionSelectorModal {
         id: connectionModal
         onNewConnectionRequested: root.requestNewConnection()
-        onConnectionSelected: (id) => App.openConnection(id)
+        onConnectionSelected: (id) => {
+            errorModal.connectionId = id
+            App.openConnection(id)
+        }
+    }
+
+    ConnectionErrorModal {
+        id: errorModal
+        errorMessage: App.lastError
+        onEditRequested: (id) => root.requestEditConnection(id)
+        onClosed: App.setLastError("")
+    }
+
+    Connections {
+        target: App
+        function onLastErrorChanged() {
+            if (App.lastError.length > 0) {
+                errorModal.open()
+            }
+        }
     }
 
     MouseArea {
@@ -306,16 +325,6 @@ Rectangle {
             onClicked: root.requestDeleteConnection(App.activeConnectionId)
             ToolTip.visible: hovered
             ToolTip.text: "Delete Connection"
-        }
-        
-        // Error Message Display
-        Text {
-            text: App.lastError
-            color: Theme.error
-            visible: App.lastError.length > 0
-            font.pixelSize: 11
-            Layout.fillWidth: true
-            elide: Text.ElideRight
         }
         
         Item { Layout.fillWidth: true } // Spacer

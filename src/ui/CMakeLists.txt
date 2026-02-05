@@ -24,6 +24,7 @@ qt_add_qml_module(SofaUI
         SqlConsole.qml
         ViewEditor.qml
         ConnectionSelectorModal.qml
+        ConnectionErrorModal.qml
     RESOURCES
     )
 
