@@ -47,7 +47,7 @@ Rectangle {
     }
 
     function getSelectionTextColor(colorValue) {
-        return isColorDark(colorValue) ? "#FFFFFF" : Theme.background
+        return isColorDark(colorValue) ? Theme.textPrimary : Theme.background
     }
 
     function resetFields() {
@@ -99,181 +99,357 @@ Rectangle {
 
     ScrollView {
         anchors.fill: parent
-        anchors.margins: Theme.spacingLarge
+        anchors.margins: 0
         
         ColumnLayout {
-            width: Math.min(parent.width, 600)
+            id: mainColumn
+            width: Math.min(parent.width - 40, 500)
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: Theme.spacingMedium
+            spacing: Theme.spacingLarge
             
-            Text {
-                text: root.connectionId === -1 ? "New Connection" : "Edit Connection"
-                font.pixelSize: 24
-                color: Theme.textPrimary
-                Layout.bottomMargin: Theme.spacingMedium
-            }
-            
-            // Driver
-            Label { text: "Driver"; color: Theme.textPrimary }
-            ComboBox {
-                id: driverCombo
-                Layout.fillWidth: true
-                textRole: "name"
-                valueRole: "id"
-                model: App.availableDrivers
-            }
+            Item { Layout.preferredHeight: 20 }
 
-            // Name
-            Label { text: "Name"; color: Theme.textPrimary }
-            TextField {
-                id: nameField
+            // Header
+            ColumnLayout {
                 Layout.fillWidth: true
-                placeholderText: "My Local DB"
+                spacing: 4
+                
+                Text {
+                    text: root.connectionId === -1 ? "New Connection" : "Edit Connection"
+                    font.pixelSize: 24
+                    font.bold: true
+                    color: Theme.textPrimary
+                }
+                Text {
+                    text: "Fill in the details to connect to the database."
+                    font.pixelSize: 13
+                    color: Theme.textSecondary
+                }
             }
 
-            Label { text: "Color"; color: Theme.textPrimary }
-            Flow {
+            Item { Layout.preferredHeight: 10 }
+
+            // Section: Identidade
+            ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.spacingMedium
+                
+                Text {
+                    text: "IDENTITY"
+                    font.pixelSize: 11
+                    font.bold: true
+                    font.capitalization: Font.AllUppercase
+                    color: Theme.accent
+                }
+                
+                // Driver + Name
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingMedium
+                    
+                    ColumnLayout {
+                        Layout.preferredWidth: 140
+                        spacing: 6
+                        Label { text: "Driver"; color: Theme.textSecondary; font.pixelSize: 12 }
+                        ComboBox {
+                            id: driverCombo
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.buttonHeight
+                            textRole: "name"
+                            valueRole: "id"
+                            model: App.availableDrivers
+                            
+                            background: Rectangle {
+                                implicitWidth: 120
+                                implicitHeight: Theme.buttonHeight
+                                color: Theme.surface
+                                border.color: parent.activeFocus ? Theme.accent : Theme.border
+                                border.width: 1
+                                radius: Theme.radius
+                            }
+                            
+                            contentItem: Text {
+                                leftPadding: 10
+                                rightPadding: 10
+                                text: driverCombo.displayText
+                                font.pixelSize: 14
+                                color: Theme.textPrimary
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+                            
+                            delegate: ItemDelegate {
+                                width: driverCombo.width
+                                contentItem: Text {
+                                    text: model.name
+                                    color: Theme.textPrimary
+                                    font.pixelSize: 14
+                                    elide: Text.ElideRight
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                background: Rectangle {
+                                    color: highlighted ? Theme.surfaceHighlight : "transparent"
+                                }
+                                highlighted: driverCombo.highlightedIndex === index
+                            }
+                            
+                            popup: Popup {
+                                y: driverCombo.height - 1
+                                width: driverCombo.width
+                                implicitHeight: contentItem.implicitHeight
+                                padding: 1
 
-                Repeater {
-                    model: colorOptions
-                    delegate: Rectangle {
-                        width: 26
-                        height: 26
-                        radius: Math.round(width * 0.28)
-                        color: modelData
-                        border.width: selectedColor === modelData ? 2 : 1
-                        border.color: selectedColor === modelData ? Theme.textPrimary : Theme.border
+                                contentItem: ListView {
+                                    clip: true
+                                    implicitHeight: contentHeight
+                                    model: driverCombo.popup.visible ? driverCombo.delegateModel : null
+                                    currentIndex: driverCombo.highlightedIndex
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: selectedColor = modelData
+                                    ScrollIndicator.vertical: ScrollIndicator { }
+                                }
+
+                                background: Rectangle {
+                                    border.color: Theme.border
+                                    color: Theme.surface
+                                    radius: Theme.radius
+                                }
+                            }
                         }
+                    }
+                    
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Label { text: "Connection Name"; color: Theme.textSecondary; font.pixelSize: 12 }
+                        AppTextField {
+                            id: nameField
+                            Layout.fillWidth: true
+                            placeholderText: "Ex: Production, Local..."
+                        }
+                    }
+                }
+                
+                // Color Picker
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Label { text: "Identification Color"; color: Theme.textSecondary; font.pixelSize: 12 }
+                    
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: selectedColor === modelData ? "✓" : ""
-                            color: getSelectionTextColor(modelData)
-                            font.pixelSize: 14
-                            font.bold: true
+                        Repeater {
+                            model: colorOptions
+                            delegate: Rectangle {
+                                width: 28
+                                height: 28
+                                radius: width / 2
+                                color: modelData
+                                border.width: selectedColor === modelData ? 2 : 0
+                                border.color: Theme.textPrimary
+                                
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: 2
+                                    radius: width / 2
+                                    color: "transparent"
+                                    border.width: 2
+                                    border.color: Theme.background
+                                    visible: selectedColor === modelData
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: selectedColor = modelData
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: getSelectionTextColor(modelData)
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    visible: selectedColor === modelData
+                                }
+                            }
                         }
                     }
                 }
             }
             
-            // Host & Port
-            RowLayout {
+            Item { Layout.preferredHeight: 10 }
+            
+            // Section: Servidor
+            ColumnLayout {
                 Layout.fillWidth: true
+                spacing: Theme.spacingMedium
+                
+                Text {
+                    text: "SERVER"
+                    font.pixelSize: 11
+                    font.bold: true
+                    font.capitalization: Font.AllUppercase
+                    color: Theme.accent
+                }
+                
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingMedium
+                    
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Label { text: "Host"; color: Theme.textSecondary; font.pixelSize: 12 }
+                        AppTextField {
+                            id: hostField
+                            Layout.fillWidth: true
+                            placeholderText: "localhost or IP"
+                        }
+                    }
+                    
+                    ColumnLayout {
+                        Layout.preferredWidth: 80
+                        spacing: 6
+                        Label { text: "Port"; color: Theme.textSecondary; font.pixelSize: 12 }
+                        AppTextField {
+                            id: portField
+                            Layout.fillWidth: true
+                            text: "5432"
+                            validator: IntValidator { bottom: 1; top: 65535 }
+                        }
+                    }
+                }
                 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    Label { text: "Host"; color: Theme.textPrimary }
-                    TextField {
-                        id: hostField
-                        Layout.fillWidth: true
-                        placeholderText: "localhost"
-                    }
-                }
-                
-                ColumnLayout {
-                    Layout.preferredWidth: 80
-                    Label { text: "Port"; color: Theme.textPrimary }
-                    TextField {
-                        id: portField
-                        Layout.fillWidth: true
-                        text: "5432"
-                        validator: IntValidator { bottom: 1; top: 65535 }
-                    }
-                }
-            }
-            
-            // Database
-            Label { text: "Database"; color: Theme.textPrimary }
-            TextField {
-                id: dbField
-                Layout.fillWidth: true
-                placeholderText: "postgres"
-            }
-            
-            // User & Password
-            RowLayout {
-                Layout.fillWidth: true
-                
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Label { text: "User"; color: Theme.textPrimary }
-                    TextField {
-                        id: userField
+                    spacing: 6
+                    Label { text: "Database"; color: Theme.textSecondary; font.pixelSize: 12 }
+                    AppTextField {
+                        id: dbField
                         Layout.fillWidth: true
                         placeholderText: "postgres"
                     }
                 }
-                
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Label { text: "Password"; color: Theme.textPrimary }
-                    TextField {
-                        id: passField
-                        Layout.fillWidth: true
-                        echoMode: TextInput.Password
-                        placeholderText: "Optional"
-                    }
-                }
             }
             
-            // Test Connection
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.topMargin: Theme.spacingMedium
-                
-                Label {
-                    id: testStatus
-                    Layout.fillWidth: true
-                    font.pixelSize: 12
-                }
-                
-                Button {
-                    text: "Test Connection"
-                    onClicked: {
-                        var data = {
-                            "host": hostField.text,
-                            "port": parseInt(portField.text),
-                            "database": dbField.text,
-                            "user": userField.text,
-                            "password": passField.text
-                        }
-                        if (App.testConnection(data)) {
-                            testStatus.text = "Connection Successful!"
-                            testStatus.color = "green"
-                        } else {
-                            testStatus.text = App.lastError.length > 0 ? App.lastError : "Connection Failed!"
-                            testStatus.color = "red"
-                        }
-                    }
-                }
-            }
+            Item { Layout.preferredHeight: 10 }
             
-            // Actions
-            RowLayout {
+            // Section: Credenciais
+            ColumnLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: Theme.spacingLarge
                 spacing: Theme.spacingMedium
                 
-                Item { Layout.fillWidth: true } // Spacer
-                
-                Button {
-                    text: "Cancel"
-                    onClicked: root.canceled()
+                Text {
+                    text: "CREDENTIALS"
+                    font.pixelSize: 11
+                    font.bold: true
+                    font.capitalization: Font.AllUppercase
+                    color: Theme.accent
                 }
                 
-                Button {
-                    text: "Save"
-                    highlighted: true
-                    onClicked: root.save()
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingMedium
+                    
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Label { text: "Username"; color: Theme.textSecondary; font.pixelSize: 12 }
+                        AppTextField {
+                            id: userField
+                            Layout.fillWidth: true
+                            placeholderText: "postgres"
+                        }
+                    }
+                    
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Label { text: "Password"; color: Theme.textSecondary; font.pixelSize: 12 }
+                        AppTextField {
+                            id: passField
+                            Layout.fillWidth: true
+                            echoMode: TextInput.Password
+                            placeholderText: "Optional"
+                        }
+                    }
                 }
             }
+
+            Item { Layout.preferredHeight: 20 }
+
+            // Actions & Test
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingMedium
+                
+                // Status Message
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: testStatus.text !== ""
+                    spacing: 8
+                    
+                    Text {
+                        text: testStatus.color == "green" ? "✓" : "!"
+                        color: testStatus.color
+                        font.bold: true
+                        font.pixelSize: 14
+                    }
+                    
+                    Text {
+                        id: testStatus
+                        text: ""
+                        color: Theme.textPrimary
+                        font.pixelSize: 13
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                    }
+                }
+                
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingMedium
+                    
+                    AppButton {
+                        text: "Test Connection"
+                        Layout.preferredWidth: 140
+                        onClicked: {
+                            var data = {
+                                "host": hostField.text,
+                                "port": parseInt(portField.text),
+                                "database": dbField.text,
+                                "user": userField.text,
+                                "password": passField.text
+                            }
+                            if (App.testConnection(data)) {
+                                testStatus.text = "Connection established successfully!"
+                                testStatus.color = "green"
+                            } else {
+                                testStatus.text = App.lastError.length > 0 ? App.lastError : "Connection failed!"
+                                testStatus.color = "red"
+                            }
+                        }
+                    }
+                    
+                    Item { Layout.fillWidth: true }
+                    
+                    AppButton {
+                        text: "Cancel"
+                        onClicked: root.canceled()
+                    }
+                    
+                    AppButton {
+                        text: "Save Connection"
+                        isPrimary: true
+                        textColor: Theme.background
+                        onClicked: root.save()
+                    }
+                }
+            }
+            
+            Item { Layout.preferredHeight: 40 }
         }
     }
 }

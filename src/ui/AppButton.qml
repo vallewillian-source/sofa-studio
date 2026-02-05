@@ -7,12 +7,13 @@ Button {
     
     // Custom properties
     property bool isPrimary: false
+    property color textColor: isPrimary ? "#FFFFFF" : Theme.textPrimary
 
     contentItem: Text {
         text: control.text
         font: control.font
         opacity: enabled ? 1.0 : 0.3
-        color: control.isPrimary ? "#FFFFFF" : Theme.textPrimary
+        color: control.textColor
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
