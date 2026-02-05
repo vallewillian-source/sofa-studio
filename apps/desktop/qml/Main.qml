@@ -231,6 +231,7 @@ ApplicationWindow {
                     id: appTabs
                     Layout.fillWidth: true
                     tabsModel: tabModel
+                    onNewQueryClicked: openSqlConsole()
                     onRequestCloseTab: (index) => {
                         console.log("Closing tab:", index)
                         if (index > 0 && index < tabModel.count) {

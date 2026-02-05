@@ -113,12 +113,6 @@ Rectangle {
                     color: Theme.textSecondary
                     Layout.fillWidth: true
                 }
-                
-                AppButton {
-                    text: "SQL"
-                    Layout.preferredHeight: 24
-                    onClicked: root.newQueryClicked()
-                }
             }
         }
         
