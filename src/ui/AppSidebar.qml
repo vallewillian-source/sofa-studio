@@ -106,6 +106,13 @@ Rectangle {
             "component": explorerComponent
         }, "primary")
         registerMenu({
+            "id": "bookmarks",
+            "title": "Bookmarks",
+            "icon": "assets/bookmark-solid-full.svg",
+            "hasPanel": true,
+            "component": null
+        }, "primary")
+        registerMenu({
             "id": "settings",
             "title": "Settings",
             "icon": "⚙",

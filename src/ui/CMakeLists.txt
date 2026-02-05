@@ -29,6 +29,7 @@ qt_add_qml_module(SofaUI
         assets/table-list-solid-full.svg
         assets/buffer-brands-solid-full.svg
         assets/logo.svg
+        assets/bookmark-solid-full.svg
     )
 
 target_include_directories(SofaUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
