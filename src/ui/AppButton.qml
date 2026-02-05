@@ -7,7 +7,7 @@ Button {
     
     // Custom properties
     property bool isPrimary: false
-    property color textColor: isPrimary ? "#FFFFFF" : Theme.textPrimary
+    property color textColor: isPrimary ? "#000000" : Theme.textPrimary
 
     contentItem: Text {
         text: control.text

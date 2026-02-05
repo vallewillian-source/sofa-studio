@@ -394,33 +394,65 @@ Rectangle {
 
             ColumnLayout {
                 anchors.centerIn: parent
-                width: parent.width - 32
-                spacing: 12
+                width: parent.width - 40 // More padding
+                spacing: 20 // More breathing room
 
-                Text {
-                    text: "No Connection"
-                    color: Theme.textPrimary
-                    font.pixelSize: 14
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
+                // Icon
+                Item {
                     Layout.alignment: Qt.AlignHCenter
+                    width: 48
+                    height: 48
+                    
+                    Image {
+                        id: emptyIcon
+                        anchors.fill: parent
+                        source: "assets/database-solid-full.svg"
+                        sourceSize: Qt.size(48, 48)
+                        visible: false
+                        fillMode: Image.PreserveAspectFit
+                    }
+                    
+                    ColorOverlay {
+                        anchors.fill: emptyIcon
+                        source: emptyIcon
+                        color: Theme.textSecondary
+                        opacity: 0.2 // Very subtle
+                    }
                 }
 
-                Text {
-                    text: "Select or create a connection to start exploring."
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
-                    horizontalAlignment: Text.AlignHCenter
-                    Layout.alignment: Qt.AlignHCenter
+                // Text
+                ColumnLayout {
                     Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
+                    spacing: 8
+                    
+                    Text {
+                        text: "No Open Connection"
+                        color: Theme.textPrimary
+                        font.pixelSize: 15 // Slightly larger
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "Connect to a database to browse schemas, tables, and views."
+                        color: Theme.textSecondary
+                        font.pixelSize: 13
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.3
+                    }
                 }
                 
-                Item { Layout.preferredHeight: 10 }
+                Item { Layout.preferredHeight: 4 }
                 
                 AppButton {
-                    text: "New Connection"
+                    text: "Connect"
+                    isPrimary: true
                     Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: 140
                     onClicked: root.requestNewConnection()
                 }
             }
