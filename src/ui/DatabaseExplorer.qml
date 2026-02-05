@@ -184,7 +184,7 @@ Rectangle {
                 anchors.rightMargin: Theme.spacingMedium
                 
                 Text {
-                    text: "DATABASES"
+                    text: "EXPLORER"
                     font.bold: true
                     font.pixelSize: 11
                     font.letterSpacing: 0.5

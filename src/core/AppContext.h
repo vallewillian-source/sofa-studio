@@ -37,7 +37,7 @@ public:
     
     // Connections API
     QVariantList connections() const;
-    Q_INVOKABLE bool saveConnection(const QVariantMap& data);
+    Q_INVOKABLE int saveConnection(const QVariantMap& data);
     Q_INVOKABLE bool deleteConnection(int id);
     
     // Drivers/Addons API

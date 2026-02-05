@@ -18,7 +18,7 @@ Popup {
     property int connectionId: -1
 
     signal editRequested(int id)
-    signal closed()
+    // signal closed() - Removed as it conflicts with Popup's base signal
 
     background: Rectangle {
         color: Theme.surface

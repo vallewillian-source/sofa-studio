@@ -429,7 +429,13 @@ ApplicationWindow {
                     // Since Loader recreates item, we can't easily check 'this' against loaded item
                     // But we know current index
                     if (appTabs.currentIndex === i) {
+                        var wasNew = tabModel.get(i).connectionId === -1
                         tabModel.remove(i)
+                        
+                        if (wasNew) {
+                            console.log("Auto-opening new connection:", id)
+                            App.openConnection(id)
+                        }
                         break
                     }
                 }

@@ -86,9 +86,10 @@ Rectangle {
             "color": selectedColor
         }
         
-        if (App.saveConnection(data)) {
-            console.log("Connection saved!")
-            root.saved(connectionId)
+        var savedId = App.saveConnection(data)
+        if (savedId !== -1) {
+            console.log("Connection saved!", savedId)
+            root.saved(savedId)
             return true
         } else {
             console.error("Failed to save connection")

@@ -83,7 +83,7 @@ QVariantList AppContext::connections() const
     return list;
 }
 
-bool AppContext::saveConnection(const QVariantMap& data)
+int AppContext::saveConnection(const QVariantMap& data)
 {
     if (!m_localStore) return false;
 
@@ -106,10 +106,10 @@ bool AppContext::saveConnection(const QVariantMap& data)
     if (id != -1) {
         emit connectionsChanged();
         m_logger->info("Saved connection: " + conn.name);
-        return true;
+        return id;
     }
     
-    return false;
+    return -1;
 }
 
 bool AppContext::deleteConnection(int id)

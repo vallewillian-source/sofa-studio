@@ -26,6 +26,8 @@ qt_add_qml_module(SofaUI
         ConnectionSelectorModal.qml
         ConnectionErrorModal.qml
     RESOURCES
+        assets/table-list-solid-full.svg
+        assets/buffer-brands-solid-full.svg
     )
 
 target_include_directories(SofaUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

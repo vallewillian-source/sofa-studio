@@ -6,12 +6,12 @@ Rectangle {
     id: root
     color: "transparent"
     property bool maximized: false
-    property int radius: maximized ? 0 : 10
+    property int sidebarRadius: maximized ? 0 : 10
     
     Rectangle {
         anchors.fill: parent
         color: Theme.surface
-        radius: root.radius
+        radius: root.sidebarRadius
         z: -1 // Ensure behind content
         
         Rectangle {
@@ -101,7 +101,7 @@ Rectangle {
         registerMenu({
             "id": "explorer",
             "title": "Explorer",
-            "icon": "🗂",
+            "icon": "assets/buffer-brands-solid-full.svg",
             "hasPanel": true,
             "component": explorerComponent
         }, "primary")
@@ -131,16 +131,39 @@ Rectangle {
 
                 Repeater {
                     model: primaryMenuModel
-                    delegate: Rectangle {
+                    delegate: Item {
                         width: Theme.sidebarRailWidth
                         height: Theme.sidebarRailWidth
-                        color: primaryMouseArea.containsMouse || root.activeMenuId === modelData.id ? Theme.surfaceHighlight : "transparent"
+                        
+                        Rectangle {
+                            width: 38
+                            height: 38
+                            radius: 8
+                            anchors.centerIn: parent
+                            color: primaryMouseArea.containsMouse || (root.activeMenuId === modelData.id && root.panelOpen) ? Theme.surfaceHighlight : "transparent"
+                        }
+
+                        Button {
+                            anchors.centerIn: parent
+                            icon.source: modelData.icon.indexOf(".svg") !== -1 ? modelData.icon : ""
+                            icon.width: Theme.sidebarIconSize
+                            icon.height: Theme.sidebarIconSize
+                            icon.color: (root.activeMenuId === modelData.id && root.panelOpen) || primaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary
+                            visible: icon.source.toString() !== ""
+                            display: AbstractButton.IconOnly
+                            background: null
+                            flat: true
+                            hoverEnabled: false
+                            enabled: false // Let the parent MouseArea handle interactions
+                            opacity: 0.8
+                        }
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData.icon
                             font.pixelSize: Theme.sidebarIconSize
-                            color: root.activeMenuId === modelData.id ? Theme.textPrimary : Theme.textSecondary
+                            color: (root.activeMenuId === modelData.id && root.panelOpen) || primaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary
+                            visible: modelData.icon.indexOf(".svg") === -1
                         }
 
                         MouseArea {
@@ -161,16 +184,40 @@ Rectangle {
 
                 Repeater {
                     model: secondaryMenuModel
-                    delegate: Rectangle {
+                    delegate: Item {
                         width: Theme.sidebarRailWidth
                         height: Theme.sidebarRailWidth
-                        color: secondaryMouseArea.containsMouse ? Theme.surfaceHighlight : "transparent"
+                        
+                        Rectangle {
+                            width: 38
+                            height: 38
+                            radius: 8
+                            anchors.centerIn: parent
+                            color: secondaryMouseArea.containsMouse ? Theme.surfaceHighlight : "transparent"
+                        }
+
+                        Button {
+                            anchors.centerIn: parent
+                            icon.source: modelData.icon.indexOf(".svg") !== -1 ? modelData.icon : ""
+                            icon.width: Theme.sidebarIconSize
+                            icon.height: Theme.sidebarIconSize
+                            icon.color: secondaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary
+                            visible: icon.source.toString() !== ""
+                            display: AbstractButton.IconOnly
+                            background: null
+                            flat: true
+                            hoverEnabled: false
+                            enabled: false
+                            opacity: 0.8
+                        }
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData.icon
                             font.pixelSize: Theme.sidebarIconSize
-                            color: Theme.textSecondary
+                            color: secondaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary
+                            visible: modelData.icon.indexOf(".svg") === -1
+                            opacity: 0.8
                         }
 
                         MouseArea {
