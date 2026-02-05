@@ -310,6 +310,7 @@ Rectangle {
                     label: schemaDelegate.isGroup ? "Hidden Schemas" : model.name
                     icon: schemaDelegate.isGroup ? "assets/eye-slash-solid-full.svg" : "assets/folder-tree-solid-full.svg" 
                     iconColor: schemaDelegate.isGroup ? "#FFF9E6" : root.connectionAccentColor
+                    iconOpacity: schemaDelegate.isGroup ? 0.7 : 1.0
                     isExpandable: true
                     isExpanded: schemaDelegate.isExpanded
                     level: 0

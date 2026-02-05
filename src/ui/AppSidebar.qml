@@ -115,7 +115,7 @@ Rectangle {
         registerMenu({
             "id": "settings",
             "title": "Settings",
-            "icon": "⚙",
+            "icon": "assets/gear-solid-full.svg",
             "hasPanel": false,
             "component": null
         }, "secondary")
@@ -208,21 +208,21 @@ Rectangle {
                             icon.source: modelData.icon.indexOf(".svg") !== -1 ? modelData.icon : ""
                             icon.width: Theme.sidebarIconSize
                             icon.height: Theme.sidebarIconSize
-                            icon.color: secondaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary
+                            icon.color: modelData.id === "settings" ? "#FFFFFF" : (secondaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary)
                             visible: icon.source.toString() !== ""
                             display: AbstractButton.IconOnly
                             background: null
                             flat: true
                             hoverEnabled: false
                             enabled: false
-                            opacity: 0.8
+                            opacity: modelData.id === "settings" ? 0.8 : 0.8
                         }
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData.icon
                             font.pixelSize: Theme.sidebarIconSize
-                            color: secondaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary
+                            color: modelData.id === "settings" ? "#FFFFFF" : (secondaryMouseArea.containsMouse ? "#FFFFFF" : Theme.textSecondary)
                             visible: modelData.icon.indexOf(".svg") === -1
                             opacity: 0.8
                         }
