@@ -202,8 +202,9 @@ ApplicationWindow {
 
             // App Header (Connections)
             AppHeader {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 35
+                id: appHeader
+                Layout.fillWidth: true
+                Layout.preferredHeight: 35
             windowRef: root
             
             onRequestNewConnection: {
@@ -231,6 +232,7 @@ ApplicationWindow {
                     openTable(schema, tableName)
                 }
                 onNewQueryClicked: openSqlConsole()
+                onRequestNewConnection: appHeader.openConnectionModal()
             }
 
             // Main Content Area

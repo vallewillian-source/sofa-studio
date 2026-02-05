@@ -60,6 +60,10 @@ Rectangle {
     signal requestEditConnection(var connectionId)
     signal requestDeleteConnection(var connectionId)
 
+    function openConnectionModal() {
+        connectionModal.open()
+    }
+
     property string activeConnectionName: {
         var currentId = App.activeConnectionId
         if (currentId === -1) {

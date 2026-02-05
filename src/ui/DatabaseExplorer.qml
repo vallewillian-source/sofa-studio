@@ -10,6 +10,7 @@ Rectangle {
     property int currentConnectionId: -1
     signal tableClicked(string schema, string table)
     signal newQueryClicked()
+    signal requestNewConnection()
     
     // --- Logic ---
 
@@ -420,7 +421,7 @@ Rectangle {
                 AppButton {
                     text: "New Connection"
                     Layout.alignment: Qt.AlignHCenter
-                    onClicked: root.newQueryClicked() // Reusing signal or we can emit a new one
+                    onClicked: root.requestNewConnection()
                 }
             }
         }

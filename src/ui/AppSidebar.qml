@@ -41,6 +41,7 @@ Rectangle {
     Layout.maximumWidth: Theme.sidebarRailWidth + (panelOpen ? Theme.sidebarMaxWidth : 0)
     signal tableClicked(string schema, string table)
     signal newQueryClicked()
+    signal requestNewConnection()
     property string activeMenuId: "explorer"
     property bool panelOpen: false
     property var activeMenu: null
@@ -318,6 +319,7 @@ Rectangle {
             anchors.fill: parent
             onTableClicked: (schema, table) => root.tableClicked(schema, table)
             onNewQueryClicked: root.newQueryClicked()
+            onRequestNewConnection: root.requestNewConnection()
         }
     }
 }
