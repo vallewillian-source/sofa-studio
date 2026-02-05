@@ -10,6 +10,8 @@ Rectangle {
     signal tableClicked(string schema, string table)
     signal newQueryClicked()
     
+    // --- Logic ---
+
     function appendSchema(targetModel, schemaName) {
         targetModel.append({
             "type": "schema",
@@ -22,6 +24,10 @@ Rectangle {
     function refresh() {
         schemaModel.clear()
         hiddenSchemaModel.clear()
+        
+        // Safety check
+        if (currentConnectionId === -1) return
+
         var list = App.getSchemas()
         for (var i = 0; i < list.length; i++) {
             appendSchema(schemaModel, list[i])
@@ -34,7 +40,7 @@ Rectangle {
             }
             schemaModel.append({
                 "type": "group",
-                "name": "hiddens",
+                "name": "Hidden Schemas",
                 "expanded": false
             })
         }
@@ -90,6 +96,77 @@ Rectangle {
             refresh()
         }
     }
+
+    // --- Components ---
+
+    component ExplorerRow : Rectangle {
+        id: row
+        property string label
+        property string icon
+        property bool isExpanded: false
+        property bool isExpandable: false
+        property int level: 0
+        property bool isSelected: false
+        property color iconColor: Theme.accent
+        property bool isDimmed: false
+        signal clicked()
+
+        width: treeView.width
+        height: 24 
+        color: mouse.containsMouse ? Theme.surfaceHighlight : "transparent"
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: (level * 12) + 8 
+            spacing: 6
+
+            // Arrow / Spacer
+            Item {
+                Layout.preferredWidth: 16
+                Layout.preferredHeight: 16
+                visible: true
+                
+                Text {
+                    anchors.centerIn: parent
+                    visible: isExpandable
+                    text: isExpanded ? "⌄" : "›"
+                    color: Theme.textSecondary
+                    font.pixelSize: 14
+                    font.bold: true
+                }
+            }
+
+            // Icon
+            Text {
+                visible: icon !== ""
+                text: icon
+                color: row.iconColor
+                font.pixelSize: 12
+                Layout.preferredWidth: 16
+                horizontalAlignment: Text.AlignHCenter
+                opacity: row.isDimmed ? 0.7 : 1.0
+            }
+
+            // Label
+            Text {
+                text: label
+                color: row.isDimmed ? Theme.textSecondary : Theme.textPrimary
+                font.pixelSize: 13
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+            }
+        }
+
+        MouseArea {
+            id: mouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: row.clicked()
+        }
+    }
+
+    // --- Layout ---
     
     ColumnLayout {
         anchors.fill: parent
@@ -98,8 +175,8 @@ Rectangle {
         // Header
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            color: "transparent"
+            Layout.preferredHeight: 35
+            color: "transparent" // VS Code explorer headers are usually transparent or same as bg
             
             RowLayout {
                 anchors.fill: parent
@@ -107,16 +184,33 @@ Rectangle {
                 anchors.rightMargin: Theme.spacingMedium
                 
                 Text {
-                    text: "EXPLORER"
+                    text: "DATABASES"
                     font.bold: true
                     font.pixelSize: 11
+                    font.letterSpacing: 0.5
                     color: Theme.textSecondary
                     Layout.fillWidth: true
+                }
+
+                // Header Actions
+                Text {
+                    text: "↺"
+                    font.pixelSize: 14
+                    color: headerMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                    Layout.alignment: Qt.AlignRight
+                    
+                    MouseArea {
+                        id: headerMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.refresh()
+                    }
                 }
             }
         }
         
-        // Tree View
+        // Content
         ListView {
             id: treeView
             Layout.fillWidth: true
@@ -124,121 +218,47 @@ Rectangle {
             visible: currentConnectionId !== -1
             clip: true
             model: schemaModel
+            boundsBehavior: Flickable.StopAtBounds
             
             delegate: Column {
                 id: schemaDelegate
                 property string schemaName: model.name
                 property bool isGroup: model.type === "group"
-                width: ListView.view.width
                 property bool isExpanded: model.expanded
                 property var tableList: model.tables
+                width: ListView.view.width
                 
-                // Schema Item
-                Rectangle {
-                    width: parent.width
-                    height: 28
-                    color: schemaMouse.containsMouse ? Theme.surfaceHighlight : "transparent"
-                    visible: !schemaDelegate.isGroup
-                    
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.spacingMedium
-                        spacing: 8
-                        
-                        Text {
-                            text: isExpanded ? "▼" : "▶"
-                            color: Theme.textSecondary
-                            font.pixelSize: 10
-                        }
-                        
-                        Text {
-                            text: model.name
-                            color: Theme.textPrimary
-                            font.pixelSize: 13
-                        }
-                    }
-                    
-                    MouseArea {
-                        id: schemaMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.toggleSchemaAt(schemaModel, index)
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 28
-                    color: groupMouse.containsMouse ? Theme.surfaceHighlight : "transparent"
-                    visible: schemaDelegate.isGroup
-                    
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.spacingMedium
-                        spacing: 8
-                        
-                        Text {
-                            text: isExpanded ? "▼" : "▶"
-                            color: Theme.textSecondary
-                            font.pixelSize: 10
-                        }
-                        
-                        Text {
-                            text: model.name
-                            color: Theme.textPrimary
-                            font.pixelSize: 13
-                        }
-                    }
-                    
-                    MouseArea {
-                        id: groupMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.toggleGroupAt(index)
+                // 1. Schema / Group Row
+                ExplorerRow {
+                    label: schemaDelegate.isGroup ? "Hidden Schemas" : model.name
+                    icon: schemaDelegate.isGroup ? "👁" : "📦" 
+                    iconColor: schemaDelegate.isGroup ? Theme.textSecondary : Theme.accent
+                    isExpandable: true
+                    isExpanded: schemaDelegate.isExpanded
+                    level: 0
+                    isDimmed: schemaDelegate.isGroup
+                    onClicked: {
+                        if (schemaDelegate.isGroup) root.toggleGroupAt(index)
+                        else root.toggleSchemaAt(schemaModel, index)
                     }
                 }
                 
-                // Tables List
+                // 2. Tables (for regular Schema)
                 Repeater {
                     model: (!schemaDelegate.isGroup && isExpanded) ? tableList : null
-                    delegate: Rectangle {
-                        width: parent.width
-                        height: 28
-                        color: tableMouse.containsMouse ? Theme.surfaceHighlight : "transparent"
-                        
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: Theme.spacingMedium * 2 + 10
-                            spacing: 8
-                            
-                            Text {
-                                text: "▦" // Table icon
-                                color: Theme.accent
-                                font.pixelSize: 12
-                            }
-                            
-                            Text {
-                                text: name
-                                color: Theme.textPrimary
-                                font.pixelSize: 13
-                            }
-                        }
-                        
-                        MouseArea {
-                            id: tableMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                console.log("\u001b[35m🗂️ Abrindo tabela\u001b[0m", schemaDelegate.schemaName + "." + name)
-                                root.tableClicked(schemaDelegate.schemaName, name)
-                            }
+                    delegate: ExplorerRow {
+                        label: name
+                        icon: "▦"
+                        iconColor: Theme.textPrimary // Neutral color for tables
+                        level: 1
+                        onClicked: {
+                            console.log("\u001b[35m🗂️ Abrindo tabela\u001b[0m", schemaDelegate.schemaName + "." + name)
+                            root.tableClicked(schemaDelegate.schemaName, name)
                         }
                     }
                 }
 
+                // 3. Hidden Schemas (for Group)
                 Column {
                     width: parent.width
                     visible: schemaDelegate.isGroup && isExpanded
@@ -252,72 +272,30 @@ Rectangle {
                             property bool isExpanded: expanded
                             property var tableList: tables
                             
-                            Rectangle {
-                                width: parent.width
-                                height: 28
-                                color: hiddenSchemaMouse.containsMouse ? Theme.surfaceHighlight : "transparent"
-                                
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: Theme.spacingMedium * 2
-                                    spacing: 8
-                                    
-                                    Text {
-                                        text: isExpanded ? "▼" : "▶"
-                                        color: Theme.textSecondary
-                                        font.pixelSize: 10
-                                    }
-                                    
-                                    Text {
-                                        text: name
-                                        color: Theme.textPrimary
-                                        font.pixelSize: 13
-                                    }
-                                }
-                                
-                                MouseArea {
-                                    id: hiddenSchemaMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.toggleSchemaAt(hiddenSchemaModel, index)
-                                }
+                            // Hidden Schema Row
+                            ExplorerRow {
+                                label: name
+                                icon: "📦"
+                                iconColor: Theme.textSecondary
+                                isExpandable: true
+                                isExpanded: hiddenSchemaDelegate.isExpanded
+                                level: 1
+                                isDimmed: true
+                                onClicked: root.toggleSchemaAt(hiddenSchemaModel, index)
                             }
                             
+                            // Tables in Hidden Schema
                             Repeater {
                                 model: isExpanded ? tableList : null
-                                delegate: Rectangle {
-                                    width: parent.width
-                                    height: 28
-                                    color: hiddenTableMouse.containsMouse ? Theme.surfaceHighlight : "transparent"
-                                    
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: Theme.spacingMedium * 3 + 10
-                                        spacing: 8
-                                        
-                                        Text {
-                                            text: "▦"
-                                            color: Theme.accent
-                                            font.pixelSize: 12
-                                        }
-                                        
-                                        Text {
-                                            text: name
-                                            color: Theme.textPrimary
-                                            font.pixelSize: 13
-                                        }
-                                    }
-                                    
-                                    MouseArea {
-                                        id: hiddenTableMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            console.log("\u001b[35m🗂️ Abrindo tabela\u001b[0m", hiddenSchemaDelegate.schemaName + "." + name)
-                                            root.tableClicked(hiddenSchemaDelegate.schemaName, name)
-                                        }
+                                delegate: ExplorerRow {
+                                    label: name
+                                    icon: "▦"
+                                    iconColor: Theme.textSecondary
+                                    level: 2
+                                    isDimmed: true
+                                    onClicked: {
+                                        console.log("\u001b[35m🗂️ Abrindo tabela oculta\u001b[0m", hiddenSchemaDelegate.schemaName + "." + name)
+                                        root.tableClicked(hiddenSchemaDelegate.schemaName, name)
                                     }
                                 }
                             }
@@ -327,46 +305,47 @@ Rectangle {
             }
         }
 
+        // Empty State
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: currentConnectionId === -1
 
             ColumnLayout {
-                anchors.top: parent.top
-                anchors.topMargin: Theme.spacingMedium * 4
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: Theme.spacingSmall
-                width: parent.width - (Theme.spacingMedium * 2)
+                anchors.centerIn: parent
+                width: parent.width - 32
+                spacing: 12
 
                 Text {
-                    text: "Selecione uma conexão acima"
+                    text: "No Connection"
                     color: Theme.textPrimary
-                    font.pixelSize: 13
+                    font.pixelSize: 14
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.alignment: Qt.AlignHCenter
+                }
+
+                Text {
+                    text: "Select or create a connection to start exploring."
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-
-                Text {
-                    text: "para começar a explorar seu banco"
-                    color: Theme.textSecondary
-                    font.pixelSize: 11
-                    horizontalAlignment: Text.AlignHCenter
+                
+                Item { Layout.preferredHeight: 10 }
+                
+                AppButton {
+                    text: "New Connection"
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
+                    onClicked: root.newQueryClicked() // Reusing signal or we can emit a new one
                 }
             }
         }
     }
     
-    ListModel {
-        id: schemaModel
-    }
-
-    ListModel {
-        id: hiddenSchemaModel
-    }
+    ListModel { id: schemaModel }
+    ListModel { id: hiddenSchemaModel }
 }

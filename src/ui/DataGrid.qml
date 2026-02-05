@@ -58,7 +58,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: "#1E1E1E"
+            color: Theme.background
             clip: true
             
             DataGridView {

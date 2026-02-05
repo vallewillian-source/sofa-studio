@@ -3,12 +3,12 @@ import QtQuick
 
 QtObject {
     // Colors
-    property color background: "#1E1E1E"
-    property color surface: "#252526"
-    property color surfaceHighlight: "#2A2D2E"
-    property color border: "#3E3E42"
-    property color textPrimary: "#CCCCCC"
-    property color textSecondary: "#858585"
+    property color background: "#0F0F0F"
+    property color surface: "#181818"
+    property color surfaceHighlight: "#222222"
+    property color border: "#333333"
+    property color textPrimary: "#E0E0E0"
+    property color textSecondary: "#909090"
     property color accent: "#007ACC"
     property color accentHover: "#0098FF"
     property color error: "#F48771"

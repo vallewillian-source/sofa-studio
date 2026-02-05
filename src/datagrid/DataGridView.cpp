@@ -6,13 +6,15 @@ namespace Sofa::DataGrid {
 
 DataGridView::DataGridView(QQuickItem* parent)
     : QQuickPaintedItem(parent)
-    , m_lineColor("#3E3E42")
-    , m_headerColor("#252526")
-    , m_textColor("#CCCCCC")
+    , m_lineColor("#333333")
+    , m_headerColor("#181818")
+    , m_textColor("#E0E0E0")
 {
     setFlag(ItemHasContents, true);
     setClip(true);
     setAcceptedMouseButtons(Qt::LeftButton);
+    // Transparent background to let QML Theme.background show through
+    setFillColor(Qt::transparent);
 }
 
 void DataGridView::mousePressEvent(QMouseEvent* event)
@@ -141,8 +143,8 @@ void DataGridView::paint(QPainter* painter)
     double h = height();
     int cols = m_engine->columnCount();
     
-    // Fill background
-    painter->fillRect(0, 0, w, h, QColor("#1E1E1E"));
+    // Background is transparent, handled by QML container
+    // painter->fillRect(0, 0, w, h, QColor("#1E1E1E"));
     
     // Calculate visible range
     // Header is always at top (visual index 0) BUT we want it sticky?

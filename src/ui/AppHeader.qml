@@ -17,44 +17,25 @@ Rectangle {
     signal requestEditConnection(var connectionId)
     signal requestDeleteConnection(var connectionId)
 
-    // Internal model for ComboBox
-    ListModel {
-        id: comboModel
-    }
-
-    function syncModel() {
+    property string activeConnectionName: {
         var currentId = App.activeConnectionId
-        var currentIndexToSet = 0 // Default to "Selecione..."
-        
-        comboModel.clear()
-        
-        // 0: Selecione...
-        comboModel.append({ "id": -1, "name": "Selecione..", "type": "placeholder" })
-        
-        // Connections
-        var conns = App.connections
-        for (var i = 0; i < conns.length; i++) {
-            var item = conns[i]
-            comboModel.append({ "id": item.id, "name": item.name, "type": "connection" })
-            if (item.id === currentId) {
-                currentIndexToSet = comboModel.count - 1
-            }
+        if (currentId === -1) {
+            return "Sofa Studio"
         }
         
-        // Last: New Connection...
-        comboModel.append({ "id": -999, "name": "Nova conexão...", "type": "action" })
-        
-        connSelector.currentIndex = currentIndexToSet
+        var conns = App.connections
+        for (var i = 0; i < conns.length; i++) {
+            if (conns[i].id === currentId) {
+                return conns[i].name
+            }
+        }
+        return "Unknown"
     }
 
-    Component.onCompleted: {
-        syncModel()
-    }
-    
-    Connections {
-        target: App
-        function onConnectionsChanged() { syncModel() }
-        function onConnectionOpened(id) { syncModel() }
+    ConnectionSelectorModal {
+        id: connectionModal
+        onNewConnectionRequested: root.requestNewConnection()
+        onConnectionSelected: (id) => App.openConnection(id)
     }
 
     MouseArea {
@@ -197,56 +178,55 @@ Rectangle {
             }
         }
         
-        Text {
-            text: "Sofa Studio"
-            font.bold: true
-            color: Theme.textPrimary
-            font.pixelSize: 12
-        }
-        
-        Rectangle { width: 1; height: 15; color: Theme.border }
-
-        ComboBox {
-            id: connSelector
-            Layout.preferredWidth: 200
-            Layout.preferredHeight: 22
-            model: comboModel
-            textRole: "name"
-            valueRole: "id"
+        Rectangle {
+            Layout.preferredHeight: 26
+            Layout.fillWidth: false
+            implicitWidth: triggerRow.implicitWidth + 16
+            radius: 4
+            color: triggerMouse.containsMouse ? Theme.surfaceHighlight : "transparent"
             
-            background: Rectangle {
-                implicitWidth: 120
-                implicitHeight: 22
-                color: Theme.background
-                border.color: Theme.border
-                radius: Theme.radius
+            MouseArea {
+                id: triggerMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: connectionModal.open()
             }
             
-            contentItem: Text {
-                leftPadding: 10
-                rightPadding: 10
-                text: connSelector.displayText
-                font: connSelector.font
-                color: Theme.textPrimary
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
-            }
-            
-            onActivated: (index) => {
-                var item = comboModel.get(index)
-                if (item.type === "action") {
-                    // New Connection
-                    root.requestNewConnection()
-                    // Reset selection to previous valid or placeholder
-                    // For now, let's just let it be, the tab opening will handle focus
-                    // But maybe we should revert selection if user cancels?
-                    // Let's keep it simple.
-                    connSelector.currentIndex = 0 
-                } else if (item.type === "connection") {
-                    App.openConnection(item.id)
-                } else {
-                    // Placeholder selected
-                    App.closeConnection()
+            RowLayout {
+                id: triggerRow
+                anchors.centerIn: parent
+                spacing: 8
+                
+                // Avatar
+                Rectangle {
+                    Layout.preferredWidth: 18
+                    Layout.preferredHeight: 18
+                    radius: 9
+                    color: App.activeConnectionId !== -1 ? connectionModal.getAvatarColor(activeConnectionName) : "transparent"
+                    visible: App.activeConnectionId !== -1
+                    
+                    Text {
+                        anchors.centerIn: parent
+                        text: activeConnectionName.length > 0 ? activeConnectionName.charAt(0).toUpperCase() : ""
+                        color: "white"
+                        font.pixelSize: 10
+                        font.bold: true
+                    }
+                }
+                
+                Text {
+                    text: activeConnectionName
+                    color: Theme.textPrimary
+                    font.bold: true
+                    font.pixelSize: 13
+                }
+                
+                Text {
+                    text: "⌄"
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
+                    Layout.topMargin: -2
                 }
             }
         }
