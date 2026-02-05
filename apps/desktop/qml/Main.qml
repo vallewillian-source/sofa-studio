@@ -563,6 +563,17 @@ ApplicationWindow {
                         onClicked: console.log("Add row clicked")
                     }
 
+                    AppButton {
+                        text: "Count"
+                        icon.source: "qrc:/qt/qml/sofa/ui/assets/hashtag-solid-full.svg"
+                        isPrimary: true
+                        accentColor: tableRoot.getActiveConnectionColor()
+                        Layout.preferredHeight: 24
+                        iconSize: 12
+                        spacing: 4
+                        onClicked: console.log("Count clicked")
+                    }
+
                     Item { Layout.fillWidth: true }
                     
                     // View Selector
