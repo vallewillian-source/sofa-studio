@@ -9,8 +9,11 @@ QtObject {
     property color border: "#333333"
     property color textPrimary: "#E0E0E0"
     property color textSecondary: "#909090"
-    property color accent: "#007ACC"
-    property color accentHover: "#0098FF"
+    property color accent: "#01D4FE"
+    property color accentHover: "#34E0FF"
+    property color accentSecondary: "#60115F"
+    property color accentDark1: "#0C2433"
+    property color accentDark2: "#12414E"
     property color error: "#F48771"
 
     // Spacing

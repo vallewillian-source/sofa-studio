@@ -30,6 +30,22 @@ Sofa Studio is a database client built with Qt Quick (QML), focusing on top-tier
 *   **Semantic Tokens, Not "Raw"**: Prefer `surface`, `border`, `textPrimary` over "gray700".
 *   **Dark First**: New components must be designed with contrast, states, and borders tailored for the dark theme.
 
+## Identidade Visual (Cores Institucionais)
+
+**Base visual oficial (hex):**
+
+*   **Destaque principal**: `#01D4FE`
+*   **Destaque secundário**: `#60115F`
+*   **Background**: `#0F0F0F`
+*   **Destaque escuro 1**: `#0C2433`
+*   **Destaque escuro 2**: `#12414E`
+
+**Regras de aplicação:**
+
+*   **Tokens primeiro**: Todas as cores devem ser expostas em `Theme` e consumidas pelos componentes.
+*   **Avatar de conexão**: A paleta deve derivar dessas cores e o texto usa contraste automático (claro em fundo escuro, escuro em fundo claro).
+*   **Consistência de contraste**: Elementos de destaque precisam manter legibilidade em estados de hover/ativo.
+
 ## Multi-Platform Strategy
 
 *   **Consistent Behavior**: Layout, density, states (hover/focus/pressed/disabled), and micro-interactions must remain equivalent across OSs.

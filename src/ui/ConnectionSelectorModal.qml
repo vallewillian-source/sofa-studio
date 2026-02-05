@@ -27,9 +27,16 @@ Popup {
 
     // Avatar Colors
     readonly property var avatarColors: [
-        "#FF5733", "#33FF57", "#3357FF", "#FF33F5", "#33FFF5", 
-        "#F5FF33", "#FF8C33", "#8C33FF", "#FF338C", "#33FF8C",
-        "#FF5733", "#DAF7A6", "#C70039", "#900C3F", "#581845"
+        Theme.accent,
+        Theme.accentSecondary,
+        Theme.accentDark1,
+        Theme.accentDark2,
+        Qt.lighter(Theme.accent, 1.15),
+        Qt.darker(Theme.accent, 1.15),
+        Qt.lighter(Theme.accentSecondary, 1.2),
+        Qt.darker(Theme.accentSecondary, 1.1),
+        Qt.lighter(Theme.accentDark2, 1.25),
+        Qt.darker(Theme.accentDark1, 1.1)
     ]
 
     function getAvatarColor(name) {
@@ -40,6 +47,44 @@ Popup {
         }
         var index = Math.abs(hash % avatarColors.length)
         return avatarColors[index]
+    }
+
+    function colorToRgb(colorValue) {
+        if (typeof colorValue === "string") {
+            var hex = colorValue.replace("#", "")
+            if (hex.length === 3) {
+                hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]
+            }
+            if (hex.length !== 6) return { "r": 0, "g": 0, "b": 0 }
+            return {
+                "r": parseInt(hex.slice(0, 2), 16) / 255,
+                "g": parseInt(hex.slice(2, 4), 16) / 255,
+                "b": parseInt(hex.slice(4, 6), 16) / 255
+            }
+        }
+        if (colorValue && colorValue.r !== undefined) {
+            return { "r": colorValue.r, "g": colorValue.g, "b": colorValue.b }
+        }
+        return { "r": 0, "g": 0, "b": 0 }
+    }
+
+    function relativeLuminance(colorValue) {
+        var rgb = colorToRgb(colorValue)
+        var toLinear = function(value) {
+            return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
+        }
+        var r = toLinear(rgb.r)
+        var g = toLinear(rgb.g)
+        var b = toLinear(rgb.b)
+        return (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
+    }
+
+    function isColorDark(colorValue) {
+        return relativeLuminance(colorValue) < 0.5
+    }
+
+    function getAvatarTextColor(colorValue) {
+        return isColorDark(colorValue) ? "#FFFFFF" : Theme.background
     }
 
     // Model Logic
@@ -185,7 +230,7 @@ Popup {
                         Text {
                             anchors.centerIn: parent
                             text: model.type === "action" ? model.icon : (model.name ? model.name.charAt(0).toUpperCase() : "?")
-                            color: model.type === "action" ? Theme.textPrimary : "#FFFFFF"
+                            color: model.type === "action" ? Theme.textPrimary : root.getAvatarTextColor(root.getAvatarColor(model.name))
                             font.bold: true
                             font.pixelSize: 16
                         }

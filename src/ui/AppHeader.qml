@@ -252,7 +252,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         text: activeConnectionName.length > 0 ? activeConnectionName.charAt(0).toUpperCase() : ""
-                        color: "white"
+                        color: connectionModal.getAvatarTextColor(connectionModal.getAvatarColor(activeConnectionName))
                         font.pixelSize: 10
                         font.bold: true
                     }
