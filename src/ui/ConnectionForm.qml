@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 Rectangle {
     id: root
-    color: Theme.background
+    color: "transparent"
     
     property int connectionId: -1
     signal saved(int id)

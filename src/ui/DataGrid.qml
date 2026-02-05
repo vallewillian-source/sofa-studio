@@ -6,7 +6,7 @@ import sofa.datagrid 1.0
 
 Rectangle {
     id: root
-    color: Theme.background
+    color: "transparent"
     
     // Public API
     property alias engine: view.engine
@@ -58,7 +58,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: Theme.background
+            color: "transparent"
             clip: true
             
             DataGridView {

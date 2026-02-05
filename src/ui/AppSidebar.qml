@@ -4,7 +4,34 @@ import QtQuick.Layouts
 
 Rectangle {
     id: root
-    color: Theme.surface
+    color: "transparent"
+    property bool maximized: false
+    property int radius: maximized ? 0 : 10
+    
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.surface
+        radius: root.radius
+        z: -1 // Ensure behind content
+        
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: parent.radius
+            color: Theme.surface
+            visible: parent.radius > 0
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.right: parent.right
+            width: parent.radius
+            height: parent.radius
+            color: Theme.surface
+            visible: parent.radius > 0
+        }
+    }
+
     property int panelWidth: Theme.sidebarWidth
     readonly property int totalWidth: Theme.sidebarRailWidth + (panelOpen ? panelWidth : 0)
     width: totalWidth
@@ -96,7 +123,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: Theme.sidebarRailWidth
             Layout.fillHeight: true
-            color: Theme.surface
+            color: "transparent"
 
             ColumnLayout {
                 anchors.fill: parent
@@ -161,7 +188,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: panelOpen ? panelWidth : 0
             Layout.fillHeight: true
-            color: Theme.surface
+            color: "transparent"
             visible: panelOpen
             clip: true
 

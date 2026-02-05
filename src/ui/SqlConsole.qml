@@ -31,7 +31,7 @@ Item {
         Rectangle {
             SplitView.preferredHeight: parent.height * 0.4
             SplitView.minimumHeight: 100
-            color: Theme.background
+            color: "transparent"
             
             ColumnLayout {
                 anchors.fill: parent
@@ -91,7 +91,7 @@ Item {
                         selectionColor: Theme.accent
                         selectedTextColor: "#FFFFFF"
                         selectByMouse: true
-                        background: Rectangle { color: Theme.background }
+                        background: Rectangle { color: "transparent" }
                         padding: 10
                         text: root.queryText
                         
@@ -122,7 +122,7 @@ Item {
         // Results Area
         Rectangle {
             SplitView.fillHeight: true
-            color: Theme.background
+            color: "transparent"
             
             ColumnLayout {
                 anchors.fill: parent
@@ -157,10 +157,17 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 24
-                    color: Theme.surface
-                    border.color: Theme.border
-                    border.width: 1
+                    color: "transparent"
                     
+                    // Top Border
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: 1
+                        color: Theme.border
+                    }
+
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 8

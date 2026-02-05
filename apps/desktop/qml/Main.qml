@@ -11,7 +11,7 @@ ApplicationWindow {
     height: 768
     visible: true
     title: qsTr("Sofa Studio")
-    color: Theme.background
+    color: "transparent"
     flags: Qt.FramelessWindowHint | Qt.Window
     
     property bool isRestoring: false
@@ -184,12 +184,24 @@ ApplicationWindow {
 
     // ConnectionDialog removed, using ConnectionForm in tabs
     
-    ColumnLayout {
+    Item {
+        id: mainContainer
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: root.visibility === Window.Maximized ? 0 : 0
+        
+        Rectangle {
+            id: windowBackground
+            anchors.fill: parent
+            color: Theme.background
+            radius: root.visibility === Window.Maximized ? 0 : 10
+        }
 
-        // App Header (Connections)
-        AppHeader {
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            // App Header (Connections)
+            AppHeader {
             Layout.fillWidth: true
             Layout.preferredHeight: 35
             windowRef: root
@@ -214,6 +226,7 @@ ApplicationWindow {
 
             AppSidebar {
                 Layout.fillHeight: true
+                maximized: root.visibility === Window.Maximized
                 onTableClicked: function(schema, tableName) {
                     openTable(schema, tableName)
                 }
@@ -309,6 +322,7 @@ ApplicationWindow {
                 }
             }
         }
+    }
     }
 
     Item {
@@ -441,7 +455,7 @@ ApplicationWindow {
     Component {
         id: homeComponent
         Rectangle {
-            color: Theme.background
+            color: "transparent"
             Column {
                 anchors.centerIn: parent
                 spacing: 20
@@ -481,7 +495,7 @@ ApplicationWindow {
             property var currentViewData: null
             property var rawColumns: [] // Store raw columns for ViewEditor
             
-            color: Theme.background
+            color: "transparent"
             
             DataGridEngine {
                 id: gridEngine

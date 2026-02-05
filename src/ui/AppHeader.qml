@@ -6,13 +6,56 @@ import QtQuick.Window
 Rectangle {
     id: root
     height: 30
-    color: Theme.surface
-    border.color: Theme.border
-    border.width: 1
+    color: "transparent"
 
     property Window windowRef: null
     property bool isMac: Qt.platform.os === "osx"
+    property int radius: (windowRef && windowRef.visibility === Window.Maximized) ? 0 : 10
     
+    // Background with top rounded corners
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.surface
+        radius: root.radius
+        border.color: Theme.border
+        border.width: 1
+        
+        // Patch Bottom (make square)
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: parent.radius
+            color: Theme.surface
+            visible: parent.radius > 0
+        }
+    }
+    
+    // Re-draw borders covered by patch
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        width: 1
+        height: root.radius
+        color: Theme.border
+        visible: root.radius > 0
+    }
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        width: 1
+        height: root.radius
+        color: Theme.border
+        visible: root.radius > 0
+    }
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 1
+        color: Theme.border
+    }
+
     signal requestNewConnection()
     signal requestEditConnection(var connectionId)
     signal requestDeleteConnection(var connectionId)
