@@ -297,10 +297,18 @@ QStringList AppContext::getSchemas()
             hiddenSet.insert(s);
         }
         auto schemas = catalog->listSchemas();
+        bool publicFound = false;
         for (const auto& s : schemas) {
             if (!hiddenSet.contains(s)) {
-                list.append(s);
+                if (s == "public") {
+                    publicFound = true;
+                } else {
+                    list.append(s);
+                }
             }
+        }
+        if (publicFound) {
+            list.prepend("public");
         }
     }
     return list;
@@ -314,8 +322,16 @@ QStringList AppContext::getHiddenSchemas()
     auto catalog = m_currentConnection->catalog();
     if (catalog) {
         auto schemas = catalog->listHiddenSchemas();
+        bool publicFound = false;
         for (const auto& s : schemas) {
-            list.append(s);
+            if (s == "public") {
+                publicFound = true;
+            } else {
+                list.append(s);
+            }
+        }
+        if (publicFound) {
+            list.prepend("public");
         }
     }
     return list;
