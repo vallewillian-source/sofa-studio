@@ -76,7 +76,7 @@ Popup {
     }
 
     function getAvatarTextColor(colorValue) {
-        return isColorDark(colorValue) ? "#FFFFFF" : Theme.background
+        return "#000000"
     }
 
     // Model Logic
