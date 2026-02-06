@@ -245,6 +245,22 @@ DatasetPage PostgresQueryProvider::execute(const QString& queryStr, const Datase
     return page;
 }
 
+int PostgresQueryProvider::count(const QString& schema, const QString& table) {
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    if (!db.isOpen()) {
+        return -1;
+    }
+    
+    QString sql = QString("SELECT COUNT(*) FROM \"%1\".\"%2\"").arg(schema).arg(table);
+    QSqlQuery q(db);
+    if (q.exec(sql) && q.next()) {
+        return q.value(0).toInt();
+    }
+    
+    qWarning() << "Count failed:" << q.lastError().text();
+    return -1;
+}
+
 int PostgresQueryProvider::backendPid() {
     QSqlDatabase db = QSqlDatabase::database(m_connectionName);
     if (!db.isOpen()) {

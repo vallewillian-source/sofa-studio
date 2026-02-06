@@ -13,6 +13,7 @@ class PostgresQueryProvider : public IQueryProvider {
 public:
     explicit PostgresQueryProvider(const QString& connectionName);
     DatasetPage execute(const QString& query, const DatasetRequest& request) override;
+    int count(const QString& schema, const QString& table) override;
     int backendPid() override;
 
 private:

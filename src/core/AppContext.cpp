@@ -34,6 +34,8 @@ AppContext::AppContext(std::shared_ptr<ICommandService> commandService,
     connect(m_worker, &QueryWorker::datasetStarted, this, &AppContext::handleDatasetStarted);
     connect(m_worker, &QueryWorker::datasetFinished, this, &AppContext::handleDatasetFinished);
     connect(m_worker, &QueryWorker::datasetError, this, &AppContext::handleDatasetError);
+    connect(m_worker, &QueryWorker::countFinished, this, &AppContext::handleCountFinished);
+    
     m_workerThread.start();
 }
 
@@ -596,6 +598,20 @@ bool AppContext::getDatasetAsync(const QString& schema, const QString& table, in
     return true;
 }
 
+void AppContext::getCount(const QString& schema, const QString& table, const QString& requestTag)
+{
+    if (!m_currentConnection || !m_currentConnection->isOpen()) {
+        if (m_logger) m_logger->error("\x1b[31m❌ Count\x1b[0m conexão não está aberta");
+        return;
+    }
+    
+    QMetaObject::invokeMethod(m_worker, "runCount", Qt::QueuedConnection,
+                              Q_ARG(QVariantMap, m_activeConnectionInfo),
+                              Q_ARG(QString, schema),
+                              Q_ARG(QString, table),
+                              Q_ARG(QString, requestTag));
+}
+
 bool AppContext::cancelActiveQuery()
 {
     if (!m_queryRunning || !m_currentConnection) {
@@ -728,6 +744,11 @@ void AppContext::handleDatasetError(const QString& requestTag, const QString& er
     m_activeRequestTag.clear();
     m_activeRequestType.clear();
     emit datasetError(requestTag, error);
+}
+
+void AppContext::handleCountFinished(const QString& requestTag, int total)
+{
+    emit countFinished(requestTag, total);
 }
 
 }

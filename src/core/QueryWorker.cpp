@@ -131,4 +131,36 @@ void QueryWorker::runDataset(const QVariantMap& connectionInfo, const QString& s
     emit datasetFinished(requestTag, result);
 }
 
+void QueryWorker::runCount(const QVariantMap& connectionInfo, const QString& schema, const QString& table, const QString& requestTag) {
+    if (!m_addonHost) {
+        // Silent error or emit error if needed, but count is often auxiliary
+        return;
+    }
+    QString driverId = connectionInfo.value("driverId").toString();
+    if (!m_addonHost->hasAddon(driverId)) {
+        return;
+    }
+    auto addon = m_addonHost->getAddon(driverId);
+    auto connection = addon->createConnection();
+
+    QString host = connectionInfo.value("host").toString();
+    int port = connectionInfo.value("port", 5432).toInt();
+    QString database = connectionInfo.value("database").toString();
+    QString user = connectionInfo.value("user").toString();
+    QString password = connectionInfo.value("password").toString();
+
+    if (!connection->open(host, port, database, user, password)) {
+        return;
+    }
+    auto queryProvider = connection->query();
+    if (!queryProvider) {
+        return;
+    }
+
+    int total = queryProvider->count(schema, table);
+    if (total != -1) {
+        emit countFinished(requestTag, total);
+    }
+}
+
 }

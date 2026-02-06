@@ -43,6 +43,8 @@ qt_add_qml_module(SofaUI
         assets/rotate-right-solid-full.svg
         assets/plus-solid-full.svg
         assets/hashtag-solid-full.svg
+        assets/key-solid-full.svg
+        assets/eye-solid-full.svg
     )
 
 target_include_directories(SofaUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

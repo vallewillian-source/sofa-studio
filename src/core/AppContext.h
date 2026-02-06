@@ -60,6 +60,7 @@ public:
     Q_INVOKABLE QVariantMap getDataset(const QString& schema, const QString& table, int limit = 100, int offset = 0);
     Q_INVOKABLE bool runQueryAsync(const QString& queryText, const QString& requestTag = "sql");
     Q_INVOKABLE bool getDatasetAsync(const QString& schema, const QString& table, int limit = 100, int offset = 0, const QString& requestTag = "table");
+    Q_INVOKABLE void getCount(const QString& schema, const QString& table, const QString& requestTag);
     Q_INVOKABLE bool cancelActiveQuery();
     
     // Views API
@@ -86,6 +87,8 @@ signals:
     void datasetFinished(const QString& requestTag, const QVariantMap& result);
     void datasetError(const QString& requestTag, const QString& error);
     void datasetCanceled(const QString& requestTag);
+    void countFinished(const QString& requestTag, int total);
+    void countError(const QString& requestTag, const QString& error);
 
 private:
     std::shared_ptr<ICommandService> m_commandService;
@@ -115,6 +118,8 @@ private slots:
     void handleDatasetStarted(const QString& requestTag, int backendPid);
     void handleDatasetFinished(const QString& requestTag, const QVariantMap& result);
     void handleDatasetError(const QString& requestTag, const QString& error);
+    void handleCountFinished(const QString& requestTag, int total);
+
 };
 
 }

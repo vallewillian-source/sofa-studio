@@ -16,6 +16,7 @@ public:
 public slots:
     void runSql(const QVariantMap& connectionInfo, const QString& queryText, const QString& requestTag);
     void runDataset(const QVariantMap& connectionInfo, const QString& schema, const QString& table, int limit, int offset, const QString& requestTag);
+    void runCount(const QVariantMap& connectionInfo, const QString& schema, const QString& table, const QString& requestTag);
 
 signals:
     void sqlStarted(const QString& requestTag, int backendPid);
@@ -24,6 +25,7 @@ signals:
     void datasetStarted(const QString& requestTag, int backendPid);
     void datasetFinished(const QString& requestTag, const QVariantMap& result);
     void datasetError(const QString& requestTag, const QString& error);
+    void countFinished(const QString& requestTag, int total);
 
 private:
     QVariantMap datasetToVariant(const DatasetPage& page);

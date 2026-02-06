@@ -550,6 +550,7 @@ ApplicationWindow {
                         Layout.preferredHeight: 24
                         Layout.preferredWidth: 24
                         iconSize: 12
+                        opacity: 0.8
                         onClicked: tableRoot.loadData()
                     }
 
@@ -561,10 +562,13 @@ ApplicationWindow {
                         Layout.preferredHeight: 24
                         iconSize: 12
                         spacing: 4
+                        opacity: 0.8
+                        font.weight: Font.DemiBold
                         onClicked: console.log("Add row clicked")
                     }
 
                     AppButton {
+                        id: btnCount
                         text: "Count"
                         icon.source: "qrc:/qt/qml/sofa/ui/assets/hashtag-solid-full.svg"
                         isPrimary: true
@@ -572,7 +576,175 @@ ApplicationWindow {
                         Layout.preferredHeight: 24
                         iconSize: 12
                         spacing: 4
-                        onClicked: console.log("Count clicked")
+                        opacity: 0.8
+                        font.weight: Font.DemiBold
+                        
+                        // Dynamic padding to shrink button when loading
+                        horizontalPadding: isLoading ? 4 : (text.length > 0 ? 12 : 0)
+                        
+                        property bool isLoading: false
+                        property string originalText: "Count"
+                        property var countStartTime: 0
+                        
+                        Timer {
+                            id: delayTimer
+                            property var pendingTotal: 0
+                            repeat: false
+                            onTriggered: {
+                                btnCount.finishLoading(pendingTotal)
+                            }
+                        }
+                        
+                        function startDelay(total, interval) {
+                            delayTimer.pendingTotal = total
+                            delayTimer.interval = interval
+                            delayTimer.start()
+                        }
+                        
+                        function finishLoading(total) {
+                            isLoading = false
+                            var suffix = (total === 1) ? " record" : " records"
+                            text = total + suffix
+                        }
+                        
+                        // Custom content item to support loading animation
+                        contentItem: Item {
+                            implicitWidth: btnCount.isLoading ? 16 : (rowLayout.implicitWidth)
+                            implicitHeight: 24 // Match button height for proper vertical centering
+                            
+                            // Normal Content
+                            RowLayout {
+                                id: rowLayout
+                                anchors.centerIn: parent
+                                spacing: btnCount.spacing
+                                visible: !btnCount.isLoading
+                                
+                                Image {
+                                    id: iconItem
+                                    source: btnCount.icon.source
+                                    Layout.preferredWidth: btnCount.iconSize
+                                    Layout.preferredHeight: btnCount.iconSize
+                                    sourceSize: Qt.size(btnCount.iconSize, btnCount.iconSize)
+                                    fillMode: Image.PreserveAspectFit
+                                    visible: btnCount.icon.source != ""
+                                    Layout.alignment: Qt.AlignVCenter
+                                    
+                                    layer.enabled: true
+                                    layer.effect: ColorOverlay {
+                                        color: btnCount.textColor
+                                    }
+                                }
+                                
+                                Text {
+                                    id: labelItem
+                                    text: btnCount.text
+                                    font: btnCount.font
+                                    color: btnCount.textColor
+                                    verticalAlignment: Text.AlignVCenter
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                            }
+                            
+                            // Loading Indicator
+                            BusyIndicator {
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                visible: btnCount.isLoading
+                                running: btnCount.isLoading
+                                
+                                contentItem: Item {
+                                    RotationAnimator on rotation {
+                                        running: btnCount.isLoading
+                                        loops: Animation.Infinite
+                                        duration: 1500
+                                        from: 0 ; to: 360
+                                    }
+                                    
+                                    Rectangle {
+                                        id: rect
+                                        width: 16
+                                        height: 16
+                                        color: "transparent"
+                                        radius: 8
+                                        border.width: 2
+                                        border.color: btnCount.textColor
+                                        opacity: 0.3
+                                    }
+                                    
+                                    Rectangle {
+                                        width: 16
+                                        height: 16
+                                        color: "transparent"
+                                        radius: 8
+                                        border.width: 2
+                                        border.color: btnCount.textColor
+                                        
+                                        // Clip half to create spinner effect
+                                        layer.enabled: true
+                                        layer.effect: OpacityMask {
+                                            maskSource: Rectangle {
+                                                width: 16
+                                                height: 16
+                                                radius: 8
+                                                gradient: Gradient {
+                                                    GradientStop { position: 0.0; color: "transparent" }
+                                                    GradientStop { position: 0.5; color: "black" }
+                                                    GradientStop { position: 1.0; color: "black" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        onClicked: {
+                            if (!isLoading) {
+                                isLoading = true
+                                countStartTime = Date.now()
+                                tableRoot.runCount()
+                            }
+                        }
+                    }
+
+                    AppButton {
+                        text: "Structure"
+                        icon.source: "qrc:/qt/qml/sofa/ui/assets/table-list-solid-full.svg"
+                        isPrimary: true
+                        accentColor: tableRoot.getActiveConnectionColor()
+                        Layout.preferredHeight: 24
+                        iconSize: 12
+                        spacing: 4
+                        opacity: 0.8
+                        font.weight: Font.DemiBold
+                        onClicked: console.log("Structure clicked")
+                    }
+
+                    AppButton {
+                        text: "Indexes"
+                        icon.source: "qrc:/qt/qml/sofa/ui/assets/key-solid-full.svg"
+                        isPrimary: true
+                        accentColor: tableRoot.getActiveConnectionColor()
+                        Layout.preferredHeight: 24
+                        iconSize: 12
+                        spacing: 4
+                        opacity: 0.8
+                        font.weight: Font.DemiBold
+                        onClicked: console.log("Indexes clicked")
+                    }
+
+                    AppButton {
+                        text: "Views"
+                        icon.source: "qrc:/qt/qml/sofa/ui/assets/eye-solid-full.svg"
+                        isPrimary: true
+                        accentColor: tableRoot.getActiveConnectionColor()
+                        Layout.preferredHeight: 24
+                        iconSize: 12
+                        spacing: 4
+                        opacity: 0.8
+                        font.weight: Font.DemiBold
+                        onClicked: console.log("Views clicked")
                     }
 
                     Item { Layout.fillWidth: true }
@@ -604,6 +776,8 @@ ApplicationWindow {
                         text: "New View"
                         icon.source: "qrc:/qt/qml/sofa/ui/assets/table-cells-large-solid-full.svg"
                         onClicked: viewEditor.openEditor(tableRoot.rawColumns, null)
+                        opacity: 0.8
+                        font.weight: Font.DemiBold
                     }
                     
                     AppButton {
@@ -611,6 +785,8 @@ ApplicationWindow {
                         icon.source: "qrc:/qt/qml/sofa/ui/assets/gear-solid-full.svg"
                         enabled: tableRoot.currentViewId !== -1
                         onClicked: viewEditor.openEditor(tableRoot.rawColumns, tableRoot.currentViewData)
+                        opacity: 0.8
+                        font.weight: Font.DemiBold
                     }
                 }
             }
@@ -776,6 +952,11 @@ ApplicationWindow {
                 }
             }
 
+            function runCount() {
+                var tag = "count_" + Date.now()
+                App.getCount(schema, tableName, tag)
+            }
+
             Keys.onPressed: (event) => {
                 if ((event.modifiers & Qt.ControlModifier || event.modifiers & Qt.MetaModifier) && event.key === Qt.Key_Period) {
                     tableRoot.gridControlsVisible = !tableRoot.gridControlsVisible
@@ -829,6 +1010,23 @@ ApplicationWindow {
                     tableRoot.empty = false
                     tableRoot.errorMessage = "Query cancelada."
                     gridEngine.clear()
+                }
+
+                function onCountFinished(tag, total) {
+                    if (tag.startsWith("count_")) {
+                        // Assuming this is for the current table's count button
+                        if (btnCount.isLoading) {
+                            var elapsed = Date.now() - btnCount.countStartTime
+                            var minTime = 300
+                            var remaining = minTime - elapsed
+                            
+                            if (remaining > 0) {
+                                btnCount.startDelay(total, remaining)
+                            } else {
+                                btnCount.finishLoading(total)
+                            }
+                        }
+                    }
                 }
             }
         }
