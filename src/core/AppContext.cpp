@@ -420,22 +420,22 @@ QVariantMap AppContext::runQuery(const QString& queryText)
 bool AppContext::runQueryAsync(const QString& queryText, const QString& requestTag)
 {
     if (!m_currentConnection || !m_currentConnection->isOpen()) {
-        setLastError("Conexão não está aberta.");
+        setLastError("Connection is not open.");
         emit sqlError(requestTag, m_lastError);
         return false;
     }
     if (m_queryRunning) {
-        setLastError("Já existe uma query em execução.");
+        setLastError("A query is already running.");
         emit sqlError(requestTag, m_lastError);
         return false;
     }
     if (!m_worker) {
-        setLastError("Worker indisponível.");
+        setLastError("Worker unavailable.");
         emit sqlError(requestTag, m_lastError);
         return false;
     }
     if (!m_activeConnectionInfo.contains("driverId")) {
-        setLastError("Configuração de conexão indisponível.");
+        setLastError("Connection configuration unavailable.");
         emit sqlError(requestTag, m_lastError);
         return false;
     }
@@ -563,22 +563,22 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
 bool AppContext::getDatasetAsync(const QString& schema, const QString& table, int limit, int offset, const QString& requestTag)
 {
     if (!m_currentConnection || !m_currentConnection->isOpen()) {
-        setLastError("Conexão não está aberta.");
+        setLastError("Connection is not open.");
         emit datasetError(requestTag, m_lastError);
         return false;
     }
     if (m_queryRunning) {
-        setLastError("Já existe uma query em execução.");
+        setLastError("A query is already running.");
         emit datasetError(requestTag, m_lastError);
         return false;
     }
     if (!m_worker) {
-        setLastError("Worker indisponível.");
+        setLastError("Worker unavailable.");
         emit datasetError(requestTag, m_lastError);
         return false;
     }
     if (!m_activeConnectionInfo.contains("driverId")) {
-        setLastError("Configuração de conexão indisponível.");
+        setLastError("Connection configuration unavailable.");
         emit datasetError(requestTag, m_lastError);
         return false;
     }

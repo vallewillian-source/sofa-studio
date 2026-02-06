@@ -714,7 +714,7 @@ ApplicationWindow {
                         Image {
                             id: stateIcon
                             anchors.fill: parent
-                            source: tableRoot.loading ? "qrc:/qt/qml/sofa/ui/assets/buffer-brands-solid-full.svg" : (tableRoot.errorMessage.length > 0 ? "qrc:/qt/qml/sofa/ui/assets/eye-slash-solid-full.svg" : "qrc:/qt/qml/sofa/ui/assets/table-list-solid-full.svg")
+                            source: tableRoot.loading ? "qrc:/qt/qml/sofa/ui/assets/buffer-brands-solid-full.svg" : (tableRoot.errorMessage.length > 0 ? "qrc:/qt/qml/sofa/ui/assets/eye-slash-solid-full.svg" : "qrc:/qt/qml/sofa/ui/assets/table-cells-large-solid-full.svg")
                             sourceSize.width: 64
                             sourceSize.height: 64
                             visible: false
@@ -723,8 +723,8 @@ ApplicationWindow {
                         ColorOverlay {
                             anchors.fill: stateIcon
                             source: stateIcon
-                            color: Theme.textSecondary
-                            opacity: 0.1
+                            color: (tableRoot.loading || tableRoot.empty || tableRoot.errorMessage.length > 0) ? Theme.textPrimary : Theme.textSecondary
+                            opacity: (tableRoot.loading || tableRoot.empty || tableRoot.errorMessage.length > 0) ? 0.5 : 0.1
                         }
                         
                         // Simple rotation for loading
@@ -758,6 +758,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: "Try Again"
                         isPrimary: true
+                        accentColor: tableRoot.getActiveConnectionColor()
                         visible: tableRoot.errorMessage.length > 0
                         onClicked: tableRoot.loadData()
                     }
