@@ -9,6 +9,7 @@ Rectangle {
     property alias currentIndex: tabBar.currentIndex
     property alias count: tabBar.count
     property int dragIndex: -1
+    property int dragThreshold: 10
     signal requestCloseTab(int index)
     signal requestCloseAllTabs()
     signal requestCloseOthers(int index)
@@ -91,6 +92,34 @@ Rectangle {
             if (x < mid) return i
         }
         return Math.max(0, tabBar.count - 1)
+    }
+
+    function boundaryBetween(index) {
+        if (!tabBar) return null
+        if (index < 0 || index >= tabBar.count - 1) return null
+        var left = tabBar.itemAt(index)
+        var right = tabBar.itemAt(index + 1)
+        if (!left || !right) return null
+        var leftEdge = left.x + left.width
+        var rightEdge = right.x
+        return (leftEdge + rightEdge) / 2
+    }
+
+    function indexWithHysteresis(currentIndex, x) {
+        var targetIndex = indexFromPosition(x)
+        if (targetIndex === -1 || targetIndex === currentIndex) return currentIndex
+
+        if (targetIndex > currentIndex) {
+            var rightBoundary = boundaryBetween(currentIndex)
+            if (rightBoundary === null) return currentIndex
+            if (x < rightBoundary + dragThreshold) return currentIndex
+            return currentIndex + 1
+        }
+
+        var leftBoundary = boundaryBetween(targetIndex)
+        if (leftBoundary === null) return currentIndex
+        if (x > leftBoundary - dragThreshold) return currentIndex
+        return currentIndex - 1
     }
     
     implicitHeight: Theme.tabBarHeight
@@ -185,9 +214,9 @@ Rectangle {
                         onPositionChanged: {
                             if (!tabBtn.dragging || control.dragIndex === -1) return
                             var pos = tabBtn.mapToItem(tabBar, mouse.x, mouse.y)
-                            var targetIndex = control.indexFromPosition(pos.x)
-                            if (targetIndex === -1) return
-                            var newIndex = control.moveTab(control.dragIndex, targetIndex)
+                            var nextIndex = control.indexWithHysteresis(control.dragIndex, pos.x)
+                            if (nextIndex === control.dragIndex) return
+                            var newIndex = control.moveTab(control.dragIndex, nextIndex)
                             control.dragIndex = newIndex
                         }
                         onReleased: {
