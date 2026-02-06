@@ -541,7 +541,8 @@ ApplicationWindow {
                     AppButton {
                         text: ""
                         icon.source: "qrc:/qt/qml/sofa/ui/assets/rotate-right-solid-full.svg"
-                        isPrimary: true
+                        isPrimary: false
+                        isOutline: true
                         accentColor: tableRoot.getActiveConnectionColor()
                         tooltip: "Refresh Data"
                         Layout.preferredHeight: 24
@@ -555,7 +556,8 @@ ApplicationWindow {
                         id: btnCount
                         text: "Count"
                         icon.source: "qrc:/qt/qml/sofa/ui/assets/hashtag-solid-full.svg"
-                        isPrimary: true
+                        isPrimary: false
+                        isOutline: true
                         accentColor: tableRoot.getActiveConnectionColor()
                         Layout.preferredHeight: 24
                         iconSize: 12
@@ -644,7 +646,8 @@ ApplicationWindow {
                     AppButton {
                         text: "Structure"
                         icon.source: "qrc:/qt/qml/sofa/ui/assets/table-list-solid-full.svg"
-                        isPrimary: true
+                        isPrimary: false
+                        isOutline: true
                         accentColor: tableRoot.getActiveConnectionColor()
                         Layout.preferredHeight: 24
                         iconSize: 12
@@ -657,7 +660,8 @@ ApplicationWindow {
                     AppButton {
                         text: "Indexes"
                         icon.source: "qrc:/qt/qml/sofa/ui/assets/key-solid-full.svg"
-                        isPrimary: true
+                        isPrimary: false
+                        isOutline: true
                         accentColor: tableRoot.getActiveConnectionColor()
                         Layout.preferredHeight: 24
                         iconSize: 12

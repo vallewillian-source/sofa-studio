@@ -8,7 +8,12 @@ Button {
     
     // Custom properties
     property bool isPrimary: false
-    property color textColor: isPrimary ? "#000000" : Theme.textPrimary
+    property bool isOutline: false
+    property color textColor: {
+        if (isPrimary) return "#000000"
+        if (isOutline) return accentColor
+        return Theme.textPrimary
+    }
     property string tooltip: ""
     property int iconSize: 16
     spacing: 8
@@ -88,11 +93,19 @@ Button {
         implicitHeight: Theme.buttonHeight
         opacity: enabled ? 1 : 0.3
         color: {
+            if (control.isOutline) {
+                if (control.pressed) return Theme.tintColor(Theme.background, control.accentColor, 0.2)
+                if (control.hovered) return Theme.tintColor(Theme.background, control.accentColor, 0.1)
+                return "transparent"
+            }
             if (control.pressed) return control.isPrimary ? Qt.darker(control.accentColor, 1.1) : Theme.surfaceHighlight
             if (control.hovered) return control.isPrimary ? Qt.lighter(control.accentColor, 1.1) : Theme.surfaceHighlight
             return control.isPrimary ? control.accentColor : Theme.surface
         }
-        border.color: control.isPrimary ? "transparent" : Theme.border
+        border.color: {
+            if (control.isOutline) return control.accentColor
+            return control.isPrimary ? "transparent" : Theme.border
+        }
         border.width: 1
         radius: Theme.radius
     }
