@@ -106,7 +106,7 @@ Rectangle {
         id: errorModal
         errorMessage: App.lastError
         onEditRequested: (id) => root.requestEditConnection(id)
-        onClosed: App.setLastError("")
+        onClosed: App.clearLastError()
     }
 
     Connections {

@@ -43,6 +43,7 @@ public:
     // Drivers/Addons API
     QVariantList availableDrivers() const;
     Q_INVOKABLE bool testConnection(const QVariantMap& data);
+    Q_INVOKABLE void clearLastError();
     QString lastError() const { return m_lastError; }
     bool queryRunning() const { return m_queryRunning; }
 

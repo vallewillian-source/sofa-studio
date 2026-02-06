@@ -56,6 +56,11 @@ void AppContext::executeCommand(const QString& id)
     }
 }
 
+void AppContext::clearLastError()
+{
+    setLastError("");
+}
+
 void AppContext::setLastError(const QString& error)
 {
     if (m_lastError == error) return;

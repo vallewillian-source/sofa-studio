@@ -533,6 +533,7 @@ ApplicationWindow {
             property int pageSize: 100
             property int pageIndex: 0
             property bool hasMore: false
+            property bool pendingLoad: false
             
             // Helper to get active connection color
             function getActiveConnectionColor() {
@@ -552,6 +553,17 @@ ApplicationWindow {
             
             DataGridEngine {
                 id: gridEngine
+            }
+
+            Timer {
+                id: loadRetryTimer
+                interval: 150
+                repeat: false
+                onTriggered: {
+                    if (tableRoot.pendingLoad) {
+                        tableRoot.loadData()
+                    }
+                }
             }
             
             // Toolbar
@@ -804,7 +816,16 @@ ApplicationWindow {
                 tableRoot.loading = false
                 tableRoot.hasMore = false
                 if (tableName) {
-                    
+                    if (App.queryRunning) {
+                        tableRoot.pendingLoad = true
+                        tableRoot.loading = true
+                        if (!loadRetryTimer.running) {
+                            loadRetryTimer.start()
+                        }
+                        return
+                    }
+
+                    tableRoot.pendingLoad = false
                     console.log("\u001b[34m📥 Buscando dados\u001b[0m", schema + "." + tableName)
                     tableRoot.requestTag = "table:" + schema + "." + tableName + ":page:" + tableRoot.pageIndex
                     tableRoot.loading = true
@@ -816,6 +837,7 @@ ApplicationWindow {
                         gridEngine.clear()
                     }
                 } else {
+                    tableRoot.pendingLoad = false
                     tableRoot.errorMessage = "Tabela inválida."
                     gridEngine.clear()
                 }
