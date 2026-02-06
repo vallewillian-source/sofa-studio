@@ -248,6 +248,7 @@ Rectangle {
                         id: dragArea
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton
+                        cursorShape: Qt.PointingHandCursor
                         drag.axis: Drag.XAxis
                         drag.target: null
                         preventStealing: true
@@ -520,12 +521,6 @@ Rectangle {
                     radius: 4
                 }
             }
-        }
-
-        // Spacer to push everything to the left
-        Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
         }
     }
 }
