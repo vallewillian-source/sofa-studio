@@ -58,6 +58,25 @@ Rectangle {
                     // Mix Theme.background with activeColor (25% opacity)
                     return Theme.tintColor(Theme.background, activeColor, 0.25)
                 }
+                
+                // Selection with connection tint (10% opacity)
+                selectionColor: {
+                    var id = App.activeConnectionId
+                    var activeColor = Theme.accent
+                    
+                    if (id !== -1) {
+                        var conns = App.connections
+                        for (var i = 0; i < conns.length; i++) {
+                            if (conns[i].id === id) {
+                                activeColor = Theme.getConnectionColor(conns[i].name, conns[i].color)
+                                break
+                            }
+                        }
+                    }
+                    
+                    return Theme.tintColor(Theme.background, activeColor, 0.1)
+                }
+
                 gridLineColor: "transparent"
                 textColor: Theme.textPrimary
                 

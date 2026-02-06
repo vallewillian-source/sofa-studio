@@ -16,6 +16,7 @@ class DataGridView : public QQuickPaintedItem {
     Q_PROPERTY(double rowHeight READ rowHeight WRITE setRowHeight NOTIFY rowHeightChanged)
     Q_PROPERTY(QColor headerColor READ headerColor WRITE setHeaderColor NOTIFY headerColorChanged)
     Q_PROPERTY(QColor alternateRowColor READ alternateRowColor WRITE setAlternateRowColor NOTIFY alternateRowColorChanged)
+    Q_PROPERTY(QColor selectionColor READ selectionColor WRITE setSelectionColor NOTIFY selectionColorChanged)
     Q_PROPERTY(QColor gridLineColor READ gridLineColor WRITE setGridLineColor NOTIFY gridLineColorChanged)
     Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor NOTIFY textColorChanged)
 
@@ -40,6 +41,9 @@ public:
     QColor alternateRowColor() const { return m_alternateRowColor; }
     void setAlternateRowColor(const QColor& c);
 
+    QColor selectionColor() const { return m_selectionColor; }
+    void setSelectionColor(const QColor& c);
+
     QColor gridLineColor() const { return m_lineColor; }
     void setGridLineColor(const QColor& c);
 
@@ -59,6 +63,7 @@ signals:
     void rowHeightChanged();
     void headerColorChanged();
     void alternateRowColorChanged();
+    void selectionColorChanged();
     void gridLineColorChanged();
     void textColorChanged();
     
@@ -81,6 +86,7 @@ private:
     QColor m_headerColor;
     QColor m_lineColor;
     QColor m_alternateRowColor;
+    QColor m_selectionColor;
     QColor m_textColor;
     
     // Selection

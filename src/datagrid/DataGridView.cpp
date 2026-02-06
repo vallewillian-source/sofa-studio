@@ -10,6 +10,7 @@ DataGridView::DataGridView(QQuickItem* parent)
     , m_lineColor("#333333")
     , m_headerColor("#181818")
     , m_alternateRowColor(Qt::transparent)
+    , m_selectionColor("#264F78")
     , m_textColor("#E0E0E0")
 {
     setFlag(ItemHasContents, true);
@@ -219,6 +220,15 @@ void DataGridView::setAlternateRowColor(const QColor& c)
     }
 }
 
+void DataGridView::setSelectionColor(const QColor& c)
+{
+    if (m_selectionColor != c) {
+        m_selectionColor = c;
+        emit selectionColorChanged();
+        update();
+    }
+}
+
 void DataGridView::setGridLineColor(const QColor& c)
 {
     if (m_lineColor != c) {
@@ -298,7 +308,7 @@ void DataGridView::paint(QPainter* painter)
 
                 // Selection
                 if (r == m_selectedRow && c == m_selectedCol) {
-                     painter->fillRect(cellRect, QColor("#264F78"));
+                     painter->fillRect(cellRect, m_selectionColor);
                 }
 
                 // Borders
