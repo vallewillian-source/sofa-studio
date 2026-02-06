@@ -63,11 +63,6 @@ public:
     Q_INVOKABLE void getCount(const QString& schema, const QString& table, const QString& requestTag);
     Q_INVOKABLE bool cancelActiveQuery();
     
-    // Views API
-    Q_INVOKABLE QVariantList getViews(const QString& schema, const QString& table);
-    Q_INVOKABLE int saveView(const QVariantMap& viewData);
-    Q_INVOKABLE bool deleteView(int id);
-
     // App State API
     Q_INVOKABLE void saveAppState(const QVariantMap& state);
     Q_INVOKABLE QVariantMap loadAppState();

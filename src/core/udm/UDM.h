@@ -24,10 +24,6 @@ struct Column {
     bool isPrimaryKey = false;
     bool isNullable = true;
     int displayWidth = 100;
-    
-    // View/Beauty properties
-    QString label; // Alias/Display Name
-    bool visible = true;
 };
 
 struct TableSchema {

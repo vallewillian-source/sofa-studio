@@ -20,10 +20,6 @@ public:
     void saveQueryHistory(const QueryHistoryItem& item) override;
     std::vector<QueryHistoryItem> getQueryHistory(int connectionId) override;
 
-    int saveView(const ViewData& data) override;
-    std::vector<ViewData> getViews(int connectionId, const QString& sourceRef) override;
-    void deleteView(int id) override;
-
     void saveSetting(const QString& key, const QVariant& value) override;
     QVariant getSetting(const QString& key, const QVariant& defaultValue = QVariant()) override;
 

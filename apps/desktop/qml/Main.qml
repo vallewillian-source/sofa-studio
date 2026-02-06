@@ -499,12 +499,6 @@ ApplicationWindow {
             property bool gridControlsVisible: true
             property string requestTag: ""
             
-            // View State
-            property var views: []
-            property int currentViewId: -1
-            property var currentViewData: null
-            property var rawColumns: [] // Store raw columns for ViewEditor
-            
             // Helper to get active connection color
             function getActiveConnectionColor() {
                 var currentId = App.activeConnectionId
@@ -734,60 +728,7 @@ ApplicationWindow {
                         onClicked: console.log("Indexes clicked")
                     }
 
-                    AppButton {
-                        text: "Views"
-                        icon.source: "qrc:/qt/qml/sofa/ui/assets/eye-solid-full.svg"
-                        isPrimary: true
-                        accentColor: tableRoot.getActiveConnectionColor()
-                        Layout.preferredHeight: 24
-                        iconSize: 12
-                        spacing: 4
-                        opacity: 0.8
-                        font.weight: Font.DemiBold
-                        onClicked: console.log("Views clicked")
-                    }
-
                     Item { Layout.fillWidth: true }
-                    
-                    // View Selector
-                    Label { 
-                        text: "VIEW" 
-                        font.pixelSize: 11
-                        font.weight: Font.Bold
-                        color: Theme.textSecondary
-                    }
-                    
-                    ComboBox {
-                        id: viewSelector
-                        Layout.preferredWidth: 200
-                        Layout.preferredHeight: 32
-                        textRole: "name"
-                        valueRole: "id"
-                        model: ListModel { id: viewModel }
-                        
-                        onActivated: (index) => {
-                            var viewId = viewModel.get(index).id
-                            tableRoot.applyView(viewId)
-                        }
-                    }
-                    
-                    // Actions
-                    AppButton {
-                        text: "New View"
-                        icon.source: "qrc:/qt/qml/sofa/ui/assets/table-cells-large-solid-full.svg"
-                        onClicked: viewEditor.openEditor(tableRoot.rawColumns, null)
-                        opacity: 0.8
-                        font.weight: Font.DemiBold
-                    }
-                    
-                    AppButton {
-                        text: "Edit"
-                        icon.source: "qrc:/qt/qml/sofa/ui/assets/gear-solid-full.svg"
-                        enabled: tableRoot.currentViewId !== -1
-                        onClicked: viewEditor.openEditor(tableRoot.rawColumns, tableRoot.currentViewData)
-                        opacity: 0.8
-                        font.weight: Font.DemiBold
-                    }
                 }
             }
 
@@ -800,23 +741,7 @@ ApplicationWindow {
                 visible: !tableRoot.loading && !tableRoot.empty && tableRoot.errorMessage.length === 0
             }
             
-            ViewEditor {
-                id: viewEditor
-                anchors.centerIn: parent
-                onViewSaved: (data) => {
-                    data.sourceRef = tableRoot.schema + "." + tableRoot.tableName
-                    var newId = App.saveView(data)
-                    if (newId !== -1) {
-                        tableRoot.loadViews()
-                        tableRoot.applyView(newId)
-                    }
-                }
-                
-                function openEditor(cols, view) {
-                    load(cols, view)
-                    open()
-                }
-            }
+            // ViewEditor removed
 
             // Empty/Loading/Error State
             Rectangle {
@@ -889,53 +814,11 @@ ApplicationWindow {
             }
 
 
-            function loadViews() {
-                var list = App.getViews(schema, tableName)
-                viewModel.clear()
-                viewModel.append({ "id": -1, "name": "Default", "definition": "" })
-                
-                for (var i = 0; i < list.length; i++) {
-                    viewModel.append(list[i])
-                }
-                
-                // Restore selection
-                for (var j = 0; j < viewModel.count; j++) {
-                    if (viewModel.get(j).id === currentViewId) {
-                        viewSelector.currentIndex = j
-                        return
-                    }
-                }
-                viewSelector.currentIndex = 0
-            }
-            
-            function applyView(viewId) {
-                currentViewId = viewId
-                currentViewData = null
-                
-                var viewDef = null
-                for (var i = 0; i < viewModel.count; i++) {
-                    if (viewModel.get(i).id === viewId) {
-                        currentViewData = viewModel.get(i)
-                        if (currentViewData.definition) {
-                            try {
-                                viewDef = JSON.parse(currentViewData.definition)
-                            } catch(e) { console.error(e) }
-                        }
-                        break
-                    }
-                }
-                
-                if (gridEngine.columnCount > 0) {
-                    gridEngine.applyView(viewDef ? JSON.stringify(viewDef) : "")
-                }
-            }
-
             function loadData() {
                 tableRoot.errorMessage = ""
                 tableRoot.empty = false
                 tableRoot.loading = false
                 if (tableName) {
-                    loadViews() // Refresh views list
                     
                     console.log("\u001b[34m📥 Buscando dados\u001b[0m", schema + "." + tableName)
                     tableRoot.requestTag = "table:" + schema + "." + tableName
@@ -990,12 +873,7 @@ ApplicationWindow {
                     }
                     tableRoot.empty = result.rows && result.rows.length === 0
 
-                    tableRoot.rawColumns = []
-                    for (var i = 0; i < result.columns.length; i++) {
-                        tableRoot.rawColumns.push(result.columns[i])
-                    }
                     gridEngine.loadFromVariant(result)
-                    applyView(currentViewId)
                 }
                 function onDatasetError(tag, error) {
                     if (tag !== tableRoot.requestTag && tableRoot.requestTag.length > 0) return;

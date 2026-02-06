@@ -96,21 +96,6 @@ void LocalStoreService::init()
         m_logger->error("Failed to create query_history table: " + query.lastError().text());
     }
     
-    QString createViewsTable = R"(
-        CREATE TABLE IF NOT EXISTS views (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            connection_id INTEGER,
-            source_ref TEXT NOT NULL,
-            name TEXT NOT NULL,
-            definition_json TEXT,
-            created_at DATETIME
-        )
-    )";
-    
-    if (!query.exec(createViewsTable)) {
-        m_logger->error("Failed to create views table: " + query.lastError().text());
-    }
-
     QString createSettingsTable = R"(
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -287,81 +272,6 @@ std::vector<QueryHistoryItem> LocalStoreService::getQueryHistory(int connectionI
         m_logger->error("Failed to fetch query history: " + query.lastError().text());
     }
     return results;
-}
-
-int LocalStoreService::saveView(const ViewData& data)
-{
-    auto db = getDatabase();
-    if (!db.open()) return -1;
-    
-    QSqlQuery query(db);
-    if (data.id == -1) {
-        query.prepare("INSERT INTO views (connection_id, source_ref, name, definition_json, created_at) VALUES (?, ?, ?, ?, ?)");
-        query.addBindValue(data.connectionId);
-        query.addBindValue(data.sourceRef);
-        query.addBindValue(data.name);
-        query.addBindValue(data.definitionJson);
-        query.addBindValue(QDateTime::currentDateTime());
-    } else {
-        query.prepare("UPDATE views SET connection_id=?, source_ref=?, name=?, definition_json=? WHERE id=?");
-        query.addBindValue(data.connectionId);
-        query.addBindValue(data.sourceRef);
-        query.addBindValue(data.name);
-        query.addBindValue(data.definitionJson);
-        query.addBindValue(data.id);
-    }
-    
-    if (query.exec()) {
-        if (data.id == -1) {
-            return query.lastInsertId().toInt();
-        }
-        return data.id;
-    } else {
-        m_logger->error("Failed to save view: " + query.lastError().text());
-        return -1;
-    }
-}
-
-std::vector<ViewData> LocalStoreService::getViews(int connectionId, const QString& sourceRef)
-{
-    std::vector<ViewData> results;
-    auto db = getDatabase();
-    if (!db.open()) return results;
-    
-    QSqlQuery query(db);
-    query.prepare("SELECT id, connection_id, source_ref, name, definition_json, created_at FROM views WHERE connection_id = ? AND source_ref = ? ORDER BY name ASC");
-    query.addBindValue(connectionId);
-    query.addBindValue(sourceRef);
-    
-    if (query.exec()) {
-        while (query.next()) {
-            ViewData item;
-            item.id = query.value(0).toInt();
-            item.connectionId = query.value(1).toInt();
-            item.sourceRef = query.value(2).toString();
-            item.name = query.value(3).toString();
-            item.definitionJson = query.value(4).toString();
-            item.createdAt = query.value(5).toDateTime();
-            results.push_back(item);
-        }
-    } else {
-        m_logger->error("Failed to fetch views: " + query.lastError().text());
-    }
-    return results;
-}
-
-void LocalStoreService::deleteView(int id)
-{
-    auto db = getDatabase();
-    if (!db.open()) return;
-    
-    QSqlQuery query(db);
-    query.prepare("DELETE FROM views WHERE id = ?");
-    query.addBindValue(id);
-    
-    if (!query.exec()) {
-        m_logger->error("Failed to delete view: " + query.lastError().text());
-    }
 }
 
 }

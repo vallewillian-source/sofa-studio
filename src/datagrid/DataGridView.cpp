@@ -49,7 +49,6 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
     
     for (int c = 0; c < m_engine->columnCount(); ++c) {
         auto colInfo = m_engine->getColumn(c);
-        if (!colInfo.visible) continue;
         
         double w = colInfo.displayWidth;
         if (absoluteX >= currentX && absoluteX < currentX + w) {
@@ -184,7 +183,6 @@ void DataGridView::paint(QPainter* painter)
         
         for (int c = 0; c < cols; ++c) {
             auto col = m_engine->getColumn(c);
-            if (!col.visible) continue;
             
             double colW = col.displayWidth;
             
@@ -221,7 +219,6 @@ void DataGridView::paint(QPainter* painter)
     double currentX = -m_contentX;
     for (int c = 0; c < cols; ++c) {
         auto col = m_engine->getColumn(c);
-        if (!col.visible) continue;
         
         double colW = col.displayWidth;
         
@@ -237,7 +234,7 @@ void DataGridView::paint(QPainter* painter)
             font.setBold(true);
             painter->setFont(font);
             
-            QString headerText = col.label.isEmpty() ? col.name : col.label;
+            QString headerText = col.name;
             painter->drawText(cellRect.adjusted(5, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, headerText);
         }
         currentX += colW;

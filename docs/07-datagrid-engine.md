@@ -17,10 +17,8 @@ A `QObject` subclass exposed to QML. It holds the "Single Source of Truth" for t
 *   **State**:
     *   `m_schema`: The `TableSchema` (columns, types).
     *   `m_rows`: `std::vector<QVariantList>` (the actual data).
-    *   `m_viewSettings`: Active view configuration (column aliases, visibility, widths).
 *   **Methods**:
     *   `loadFromVariant(QVariantMap)`: Parses the result from `AppContext` (UDM format) and populates the internal vectors.
-    *   `applyView(QVariantMap)`: Updates column metadata (labels, visibility) based on a saved view.
     *   `rowCount()`, `columnCount()`, `data(row, col)`: Accessors for the renderer.
 
 ### 2. DataGridView (The Renderer)
@@ -47,5 +45,4 @@ Combines the C++ Renderer with QML controls.
 ## Key Features
 
 *   **Virtualization**: Only draws what is visible. Can handle 100k+ rows (memory permitting) with smooth scrolling.
-*   **View Support**: Columns can be hidden or renamed without modifying the underlying data.
 *   **Type Aware**: Renders different types differently (e.g., right-align numbers, special formatting for dates).

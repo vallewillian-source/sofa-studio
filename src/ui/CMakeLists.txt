@@ -26,7 +26,6 @@ qt_add_qml_module(SofaUI
     DatabaseExplorer.qml
         DataGrid.qml
         SqlConsole.qml
-        ViewEditor.qml
         ConnectionSelectorModal.qml
         ConnectionErrorModal.qml
     RESOURCES
