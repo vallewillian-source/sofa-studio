@@ -35,7 +35,6 @@ qt_add_qml_module(SofaUI
         assets/database-solid-full.svg
         assets/eye-slash-solid-full.svg
         assets/gear-solid-full.svg
-        assets/logo.svg
         assets/bookmark-solid-full.svg
         assets/folder-tree-solid-full.svg
         assets/plug-solid-full.svg
