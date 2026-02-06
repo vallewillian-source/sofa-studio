@@ -9,6 +9,6 @@ qt_add_library(SofaDataGrid STATIC
     DataGridView.cpp
 )
 
-target_link_libraries(SofaDataGrid PUBLIC Qt6::Quick Qt6::Core SofaCore)
+target_link_libraries(SofaDataGrid PUBLIC Qt6::Quick Qt6::Core Qt6::Svg SofaCore)
 
 target_include_directories(SofaDataGrid PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

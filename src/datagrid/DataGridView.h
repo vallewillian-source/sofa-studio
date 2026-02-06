@@ -1,6 +1,7 @@
 #pragma once
 #include <QQuickPaintedItem>
 #include <QPainter>
+#include <QSvgRenderer>
 #include "DataGridEngine.h"
 
 namespace Sofa::DataGrid {
@@ -44,26 +45,30 @@ public:
 
     QColor textColor() const { return m_textColor; }
     void setTextColor(const QColor& c);
-    
+
     double totalHeight() const;
     double totalWidth() const;
     
     void paint(QPainter* painter) override;
 
-protected:
-    void mousePressEvent(QMouseEvent* event) override;
-
 signals:
     void engineChanged();
     void contentYChanged();
     void contentXChanged();
-    void rowHeightChanged();
     void contentSizeChanged();
+    void rowHeightChanged();
     void headerColorChanged();
     void alternateRowColorChanged();
     void gridLineColorChanged();
     void textColorChanged();
+    
+    void columnSettingsClicked(int index);
 
+protected:
+    void mousePressEvent(QMouseEvent* event) override;
+    void hoverMoveEvent(QHoverEvent* event) override;
+    void hoverLeaveEvent(QHoverEvent* event) override;
+    
 private slots:
     void onEngineUpdated();
 
@@ -73,14 +78,18 @@ private:
     double m_contentX = 0;
     double m_rowHeight = 30;
     
-    QColor m_lineColor;
     QColor m_headerColor;
+    QColor m_lineColor;
     QColor m_alternateRowColor;
     QColor m_textColor;
     
     // Selection
     int m_selectedRow = -1;
     int m_selectedCol = -1;
+    
+    // Header Interaction
+    int m_hoveredHeaderColumn = -1;
+    QSvgRenderer* m_gearIcon = nullptr;
 };
 
 }

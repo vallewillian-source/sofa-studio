@@ -1,6 +1,7 @@
 #include "DataGridView.h"
 #include <cmath>
 #include <QMouseEvent>
+#include <QHoverEvent>
 
 namespace Sofa::DataGrid {
 
@@ -14,8 +15,57 @@ DataGridView::DataGridView(QQuickItem* parent)
     setFlag(ItemHasContents, true);
     setClip(true);
     setAcceptedMouseButtons(Qt::LeftButton);
+    setAcceptHoverEvents(true);
     // Transparent background to let QML Theme.background show through
     setFillColor(Qt::transparent);
+    
+    m_gearIcon = new QSvgRenderer(QString(":/qt/qml/sofa/ui/assets/gear-solid-full.svg"), this);
+}
+
+void DataGridView::hoverMoveEvent(QHoverEvent* event)
+{
+    if (!m_engine) return;
+
+    double y = event->position().y();
+    double x = event->position().x();
+
+    // Check if over header
+    if (y < m_rowHeight) {
+        double absoluteX = x + m_contentX;
+        int col = -1;
+        double currentX = 0;
+        
+        for (int c = 0; c < m_engine->columnCount(); ++c) {
+            auto colInfo = m_engine->getColumn(c);
+            double w = colInfo.displayWidth;
+            if (absoluteX >= currentX && absoluteX < currentX + w) {
+                col = c;
+                break;
+            }
+            currentX += w;
+        }
+        
+        if (m_hoveredHeaderColumn != col) {
+            m_hoveredHeaderColumn = col;
+            update(); // Optimally: update(0, 0, width(), m_rowHeight);
+        }
+    } else {
+        if (m_hoveredHeaderColumn != -1) {
+            m_hoveredHeaderColumn = -1;
+            update();
+        }
+    }
+    
+    QQuickPaintedItem::hoverMoveEvent(event);
+}
+
+void DataGridView::hoverLeaveEvent(QHoverEvent* event)
+{
+    if (m_hoveredHeaderColumn != -1) {
+        m_hoveredHeaderColumn = -1;
+        update();
+    }
+    QQuickPaintedItem::hoverLeaveEvent(event);
 }
 
 void DataGridView::mousePressEvent(QMouseEvent* event)
@@ -27,6 +77,36 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
     
     // Check if header clicked
     if (y < m_rowHeight) {
+        // Calculate Col
+        double absoluteX = x + m_contentX;
+        int col = -1;
+        double currentX = 0;
+        
+        for (int c = 0; c < m_engine->columnCount(); ++c) {
+            auto colInfo = m_engine->getColumn(c);
+            double w = colInfo.displayWidth;
+            
+            if (absoluteX >= currentX && absoluteX < currentX + w) {
+                col = c;
+                
+                // Check if clicked on Gear Icon
+                if (col == m_hoveredHeaderColumn) {
+                    int iconSize = 14;
+                    int padding = 6;
+                    // Icon X in logical coords
+                    double iconLogicalX = currentX + w - iconSize - padding;
+                    
+                    // Check bounds
+                    if (absoluteX >= iconLogicalX && absoluteX <= iconLogicalX + iconSize) {
+                        emit columnSettingsClicked(col);
+                        return; // Handled
+                    }
+                }
+                
+                break;
+            }
+            currentX += w;
+        }
         return;
     }
     
@@ -179,26 +259,6 @@ void DataGridView::paint(QPainter* painter)
     double h = height();
     int cols = m_engine->columnCount();
     
-    // Background is transparent, handled by QML container
-    // painter->fillRect(0, 0, w, h, QColor("#1E1E1E"));
-    
-    // Calculate visible range
-    // Header is always at top (visual index 0) BUT we want it sticky?
-    // For simplicity V1: Header scrolls with content or stays fixed?
-    // User expects sticky header.
-    // So: render header at y=0.
-    // Render rows starting from y=rowHeight.
-    // Visible content starts at contentY.
-    // If contentY > 0, we skip rows.
-    
-    // Wait, typical ScrollView logic: contentY is the offset into the total content.
-    // We want to paint the slice: [contentY, contentY + h]
-    // Sticky header logic:
-    // We will paint header ON TOP of everything at y=0.
-    // The "data area" starts at y=rowHeight visual.
-    // So effective data viewport is y=rowHeight to h.
-    // Data scroll offset is contentY.
-    
     // Draw Data
     int startRow = static_cast<int>(floor(m_contentY / m_rowHeight));
     int endRow = static_cast<int>(ceil((m_contentY + h) / m_rowHeight));
@@ -282,7 +342,28 @@ void DataGridView::paint(QPainter* painter)
             painter->setFont(font);
             
             QString headerText = col.name;
-            painter->drawText(cellRect.adjusted(8, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, headerText);
+            // Adjust text rect to avoid icon if present
+            QRectF textRect = cellRect.adjusted(8, 0, -5, 0);
+            
+            if (c == m_hoveredHeaderColumn) {
+                // Draw Gear Icon
+                int iconSize = 14;
+                int padding = 6;
+                double iconX = cellRect.right() - iconSize - padding;
+                double iconY = (m_rowHeight - iconSize) / 2.0;
+                
+                if (colW > iconSize + padding * 3) {
+                    QRectF iconRect(iconX, iconY, iconSize, iconSize);
+                    if (m_gearIcon && m_gearIcon->isValid()) {
+                        m_gearIcon->render(painter, iconRect);
+                    }
+                    
+                    // Reduce text area
+                    textRect.setRight(iconX - padding);
+                }
+            }
+            
+            painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, headerText);
         }
         currentX += colW;
     }
