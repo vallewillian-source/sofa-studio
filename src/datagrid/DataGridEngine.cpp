@@ -83,14 +83,42 @@ void DataGridEngine::loadFromVariant(const QVariantMap& data)
         col.name = map["name"].toString();
         col.rawType = map["type"].toString();
         QString raw = col.rawType.toLower();
-        if (raw.contains("int")) col.type = Sofa::Core::DataType::Integer;
-        else if (raw.contains("bool")) col.type = Sofa::Core::DataType::Boolean;
-        else col.type = Sofa::Core::DataType::Text;
         
-        col.displayWidth = 150;
+        // Heuristic for column width based on type and name
+        if (raw.contains("int") || raw.contains("serial") || raw.contains("number")) {
+            col.type = Sofa::Core::DataType::Integer;
+            col.displayWidth = 100;
+        }
+        else if (raw.contains("bool")) {
+            col.type = Sofa::Core::DataType::Boolean;
+            col.displayWidth = 80;
+        }
+        else if (raw.contains("date") || raw.contains("time") || raw.contains("timestamp")) {
+            col.type = Sofa::Core::DataType::DateTime;
+            col.displayWidth = 180;
+        }
+        else if (raw.contains("json") || raw.contains("xml") || raw.contains("text")) {
+             col.type = Sofa::Core::DataType::Text;
+             col.displayWidth = 300; // Long text
+        }
+        else {
+            col.type = Sofa::Core::DataType::Text;
+            col.displayWidth = 150; // Default text
+        }
+        
+        // ID/UUID special case
+        if (col.name.toLower() == "id" || col.name.toLower().contains("_id")) {
+             if (col.displayWidth > 120) col.displayWidth = 120; // IDs usually compact unless UUID
+        }
+        if (col.name.toLower() == "uuid") {
+             col.displayWidth = 280;
+        }
+        
         schema.columns.push_back(col);
     }
     setSchema(schema);
+    
+    qInfo() << "\x1b[36m📏 DataGrid Layout\x1b[0m Cols:" << schema.columns.size() << "TotalWidth:" << totalWidth();
     
     QVariantList rows = data["rows"].toList();
     qInfo() << "\x1b[35m🧪 DataGrid rows payload\x1b[0m total:" << rows.size();

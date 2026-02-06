@@ -37,6 +37,9 @@ Rectangle {
                 // Colors
                 // Header darker than background
                 headerColor: "#050505" 
+                
+                onTotalWidthChanged: console.log("DataGrid TotalWidth:", totalWidth, "ViewWidth:", width)
+                
                 // Zebra striping with connection tint
                 alternateRowColor: {
                     var id = App.activeConnectionId

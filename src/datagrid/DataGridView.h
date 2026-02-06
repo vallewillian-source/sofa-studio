@@ -11,6 +11,7 @@ class DataGridView : public QQuickPaintedItem {
     Q_PROPERTY(double contentY READ contentY WRITE setContentY NOTIFY contentYChanged)
     Q_PROPERTY(double contentX READ contentX WRITE setContentX NOTIFY contentXChanged)
     Q_PROPERTY(double totalHeight READ totalHeight NOTIFY contentSizeChanged)
+    Q_PROPERTY(double totalWidth READ totalWidth NOTIFY contentSizeChanged)
     Q_PROPERTY(double rowHeight READ rowHeight WRITE setRowHeight NOTIFY rowHeightChanged)
     Q_PROPERTY(QColor headerColor READ headerColor WRITE setHeaderColor NOTIFY headerColorChanged)
     Q_PROPERTY(QColor alternateRowColor READ alternateRowColor WRITE setAlternateRowColor NOTIFY alternateRowColorChanged)
