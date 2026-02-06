@@ -10,6 +10,8 @@ Rectangle {
     property alias count: tabBar.count
     signal requestCloseTab(int index)
     signal requestCloseAllTabs()
+    signal requestCloseOthers(int index)
+    signal requestCloseTabsToRight(int index)
     signal newQueryClicked()
     readonly property var avatarColors: Theme.connectionAvatarColors
     property string activeConnectionName: {
@@ -85,12 +87,14 @@ Rectangle {
 
         Controls.MenuItem {
             text: "Close Others"
-            onTriggered: console.log("Close others")
+            enabled: contextMenu.targetIndex !== -1
+            onTriggered: control.requestCloseOthers(contextMenu.targetIndex)
         }
 
         Controls.MenuItem {
             text: "Close To the Right"
-            onTriggered: console.log("Close to the right")
+            enabled: contextMenu.targetIndex !== -1
+            onTriggered: control.requestCloseTabsToRight(contextMenu.targetIndex)
         }
     }
 

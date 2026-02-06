@@ -264,6 +264,32 @@ ApplicationWindow {
                         }
                         appTabs.currentIndex = 0
                     }
+                    onRequestCloseOthers: (index) => {
+                        if (index < 0 || index >= tabModel.count) {
+                            return
+                        }
+                        for (var i = tabModel.count - 1; i >= 0; i--) {
+                            if (i !== index && tabModel.get(i).type !== "home") {
+                                tabModel.remove(i)
+                            }
+                        }
+                        if (appTabs.currentIndex !== index) {
+                            appTabs.currentIndex = Math.min(index, tabModel.count - 1)
+                        }
+                    }
+                    onRequestCloseTabsToRight: (index) => {
+                        if (index < 0 || index >= tabModel.count) {
+                            return
+                        }
+                        for (var i = tabModel.count - 1; i > index; i--) {
+                            if (tabModel.get(i).type !== "home") {
+                                tabModel.remove(i)
+                            }
+                        }
+                        if (appTabs.currentIndex > index) {
+                            appTabs.currentIndex = index
+                        }
+                    }
                 }
                 
                 // Content Area
