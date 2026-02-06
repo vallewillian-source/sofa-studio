@@ -114,6 +114,13 @@ Rectangle {
             "component": null
         }, "primary")
         registerMenu({
+            "id": "extensions",
+            "title": "extensions",
+            "icon": "assets/table-cells-large-solid-full.svg",
+            "hasPanel": true,
+            "component": extensionsComponent
+        }, "primary")
+        registerMenu({
             "id": "settings",
             "title": "Settings",
             "icon": "assets/gear-solid-full.svg",
@@ -183,6 +190,26 @@ Rectangle {
                                 if (modelData.hasPanel) {
                                     root.toggleMenu(modelData.id)
                                 }
+                            }
+                        }
+
+                        ToolTip {
+                            visible: primaryMouseArea.containsMouse && modelData.id === "extensions"
+                            text: "Extensions"
+                            delay: 500
+                            timeout: 5000
+
+                            contentItem: Text {
+                                text: "Extensions"
+                                font.pixelSize: 12
+                                color: Theme.textPrimary
+                            }
+
+                            background: Rectangle {
+                                color: Theme.surfaceHighlight
+                                border.color: Theme.border
+                                border.width: 1
+                                radius: 4
                             }
                         }
                     }
@@ -320,6 +347,44 @@ Rectangle {
             onTableClicked: (schema, table) => root.tableClicked(schema, table)
             onNewQueryClicked: root.newQueryClicked()
             onRequestNewConnection: root.requestNewConnection()
+        }
+    }
+
+    Component {
+        id: extensionsComponent
+        Rectangle {
+            color: Theme.surface
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 0
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 35
+                    color: "transparent"
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacingMedium
+                        anchors.rightMargin: Theme.spacingMedium
+
+                        Text {
+                            text: "extensions"
+                            font.bold: true
+                            font.pixelSize: 11
+                            font.letterSpacing: 0.5
+                            color: Theme.textSecondary
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                }
+            }
         }
     }
 }
