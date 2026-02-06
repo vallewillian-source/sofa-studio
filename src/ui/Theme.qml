@@ -43,4 +43,27 @@ QtObject {
     property int tabBarHeight: 35
     property int buttonHeight: 30
     property int radius: 4
+
+    // Helpers
+    function getConnectionColor(name, colorValue) {
+        if (colorValue && colorValue.length > 0) return colorValue
+        if (!name) return connectionAvatarColors[0]
+        var hash = 0
+        for (var i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash)
+        }
+        var index = Math.abs(hash % connectionAvatarColors.length)
+        return connectionAvatarColors[index]
+    }
+
+    function tintColor(base, tint, factor) {
+        // Simple manual mixing since Qt.tint() is not available in pure JS/QML logic easily without item
+        // But QML has Qt.tint(base, tint) which works on color objects
+        // Qt.tint(color base, color tint) returns a color.
+        // If we want "slightly tinted", we can use a tint color with low alpha.
+        // e.g. Qt.tint(base, Qt.rgba(tint.r, tint.g, tint.b, factor))
+        
+        var t = Qt.rgba(tint.r, tint.g, tint.b, factor)
+        return Qt.tint(base, t)
+    }
 }

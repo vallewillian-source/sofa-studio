@@ -33,6 +33,30 @@ Rectangle {
             DataGridView {
                 id: view
                 anchors.fill: parent
+
+                // Colors
+                // Header darker than background
+                headerColor: "#050505" 
+                // Zebra striping with connection tint
+                alternateRowColor: {
+                    var id = App.activeConnectionId
+                    var activeColor = Theme.accent
+                    
+                    if (id !== -1) {
+                        var conns = App.connections
+                        for (var i = 0; i < conns.length; i++) {
+                            if (conns[i].id === id) {
+                                activeColor = Theme.getConnectionColor(conns[i].name, conns[i].color)
+                                break
+                            }
+                        }
+                    }
+                    
+                    // Mix Theme.background with activeColor (25% opacity)
+                    return Theme.tintColor(Theme.background, activeColor, 0.25)
+                }
+                gridLineColor: "transparent"
+                textColor: Theme.textPrimary
                 
                 // Bind scrollbars
                 contentY: vScroll.position * view.totalHeight

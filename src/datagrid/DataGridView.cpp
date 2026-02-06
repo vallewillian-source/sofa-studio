@@ -8,6 +8,7 @@ DataGridView::DataGridView(QQuickItem* parent)
     : QQuickPaintedItem(parent)
     , m_lineColor("#333333")
     , m_headerColor("#181818")
+    , m_alternateRowColor(Qt::transparent)
     , m_textColor("#E0E0E0")
 {
     setFlag(ItemHasContents, true);
@@ -120,6 +121,42 @@ void DataGridView::setRowHeight(double h)
     }
 }
 
+void DataGridView::setHeaderColor(const QColor& c)
+{
+    if (m_headerColor != c) {
+        m_headerColor = c;
+        emit headerColorChanged();
+        update();
+    }
+}
+
+void DataGridView::setAlternateRowColor(const QColor& c)
+{
+    if (m_alternateRowColor != c) {
+        m_alternateRowColor = c;
+        emit alternateRowColorChanged();
+        update();
+    }
+}
+
+void DataGridView::setGridLineColor(const QColor& c)
+{
+    if (m_lineColor != c) {
+        m_lineColor = c;
+        emit gridLineColorChanged();
+        update();
+    }
+}
+
+void DataGridView::setTextColor(const QColor& c)
+{
+    if (m_textColor != c) {
+        m_textColor = c;
+        emit textColorChanged();
+        update();
+    }
+}
+
 double DataGridView::totalHeight() const
 {
     if (!m_engine) return 0;
@@ -191,6 +228,14 @@ void DataGridView::paint(QPainter* painter)
                 // Draw Cell
                 QRectF cellRect(currentX, currentY, colW, m_rowHeight);
                 
+                // Background (Zebra Striping)
+                // Only if not selected (selection draws over it)
+                if (r != m_selectedRow || c != m_selectedCol) {
+                    if (r % 2 == 0 && m_alternateRowColor.alpha() > 0) {
+                        painter->fillRect(cellRect, m_alternateRowColor);
+                    }
+                }
+
                 // Selection
                 if (r == m_selectedRow && c == m_selectedCol) {
                      painter->fillRect(cellRect, QColor("#264F78"));
@@ -203,7 +248,7 @@ void DataGridView::paint(QPainter* painter)
                 // Text
                 QString text = m_engine->getData(r, c).toString();
                 painter->setPen(m_textColor);
-                painter->drawText(cellRect.adjusted(5, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, text);
+                painter->drawText(cellRect.adjusted(8, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, text);
             }
             currentX += colW;
         }
@@ -235,7 +280,7 @@ void DataGridView::paint(QPainter* painter)
             painter->setFont(font);
             
             QString headerText = col.name;
-            painter->drawText(cellRect.adjusted(5, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, headerText);
+            painter->drawText(cellRect.adjusted(8, 0, -5, 0), Qt::AlignLeft | Qt::AlignVCenter, headerText);
         }
         currentX += colW;
     }
