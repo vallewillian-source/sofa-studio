@@ -9,6 +9,7 @@ Rectangle {
     property alias currentIndex: tabBar.currentIndex
     property alias count: tabBar.count
     signal requestCloseTab(int index)
+    signal requestCloseAllTabs()
     signal newQueryClicked()
     readonly property var avatarColors: Theme.connectionAvatarColors
     property string activeConnectionName: {
@@ -74,12 +75,12 @@ Rectangle {
             text: "Close Tab"
             visible: contextMenu.targetIndex !== -1 && control.tabsModel && control.tabsModel.get(contextMenu.targetIndex).type !== "home"
             height: visible ? implicitHeight : 0
-            onTriggered: console.log("Close tab", contextMenu.targetIndex)
+            onTriggered: control.requestCloseTab(contextMenu.targetIndex)
         }
 
         Controls.MenuItem {
             text: "Close All Tabs"
-            onTriggered: console.log("Close all tabs")
+            onTriggered: control.requestCloseAllTabs()
         }
 
         Controls.MenuItem {

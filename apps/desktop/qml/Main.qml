@@ -258,6 +258,12 @@ ApplicationWindow {
                             // but let's ensure we land on a safe tab (e.g. last one) if current becomes invalid
                         }
                     }
+                    onRequestCloseAllTabs: () => {
+                        for (var i = tabModel.count - 1; i >= 1; i--) {
+                            tabModel.remove(i)
+                        }
+                        appTabs.currentIndex = 0
+                    }
                 }
                 
                 // Content Area
