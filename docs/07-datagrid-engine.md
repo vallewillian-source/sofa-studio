@@ -35,7 +35,7 @@ A `QQuickPaintedItem` subclass. This is where the pixels are drawn.
     *   Handles mouse clicks for cell selection.
     *   Calculates row/column from X/Y coordinates.
     *   Handles column width resize (drag on header separators) with live feedback and double-click auto-fit.
-    *   Handles row height resize (drag on row-header separator) with live feedback and double-click reset.
+    *   Handles row height resize globally and per-row (drag on row-header separators) with live feedback and double-click reset.
 
 ### 3. QML Integration (`DataGrid.qml`)
 **File:** [DataGrid.qml](src/ui/DataGrid.qml)

@@ -3,6 +3,7 @@
 #include <QPainter>
 #include <QSvgRenderer>
 #include <QRectF>
+#include <vector>
 #include "DataGridEngine.h"
 
 namespace Sofa::DataGrid {
@@ -77,6 +78,7 @@ signals:
     void cellContextMenuRequested(int row, int column, double x, double y);
     void columnResized(int index, int width);
     void rowHeightResized(double height);
+    void rowResized(int row, double height);
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -91,12 +93,22 @@ private slots:
     void onEngineUpdated();
 
 private:
+    static constexpr int kRowResizeHandleNone = -1;
+    static constexpr int kRowResizeHandleAll = -2;
+
     int columnAtPosition(double x) const;
     int columnResizeHandleAt(double x, double y) const;
-    bool rowResizeHandleAt(double x, double y) const;
+    int rowResizeHandleAt(double x, double y) const;
     double columnRightX(int column) const;
     int autoFitColumnWidth(int column) const;
     QString cellDisplayText(int row, int column) const;
+    double rowHeightForRow(int row) const;
+    double rowTopContentY(int row) const;
+    int rowAtContentY(double y) const;
+    void setRowHeightForRow(int row, double height);
+    void syncRowOverridesWithEngine();
+    void ensureRowLayoutCache() const;
+    void markRowLayoutDirty();
     double maxContentX() const;
     double maxContentY() const;
     void clampScrollOffsets();
@@ -122,16 +134,21 @@ private:
     // Header Interaction
     int m_hoveredHeaderColumn = -1;
     int m_hoveredResizeColumn = -1;
-    bool m_hoveredRowResizeHandle = false;
+    int m_hoveredRowResizeHandle = kRowResizeHandleNone;
     QSvgRenderer* m_gearIcon = nullptr;
 
     // Resize Interaction
     int m_resizingColumn = -1;
     double m_resizeStartX = 0;
     int m_resizeInitialWidth = 0;
-    bool m_resizingRowHeight = false;
+    int m_resizingRowResizeHandle = kRowResizeHandleNone;
     double m_rowResizeStartY = 0;
     double m_rowResizeInitialHeight = 30;
+
+    std::vector<double> m_rowHeightOverrides;
+    bool m_hasRowOverrides = false;
+    mutable std::vector<double> m_rowOffsets;
+    mutable bool m_rowLayoutDirty = true;
 
     // Gutter
     double m_gutterWidth = 50;

@@ -27,6 +27,123 @@ DataGridView::DataGridView(QQuickItem* parent)
     m_gearIcon = new QSvgRenderer(QString(":/qt/qml/sofa/ui/assets/gear-solid-full.svg"), this);
 }
 
+void DataGridView::markRowLayoutDirty()
+{
+    m_rowLayoutDirty = true;
+}
+
+void DataGridView::syncRowOverridesWithEngine()
+{
+    const int rows = m_engine ? std::max(0, m_engine->rowCount()) : 0;
+    m_rowHeightOverrides.resize(rows, 0.0);
+    m_hasRowOverrides = std::any_of(
+        m_rowHeightOverrides.begin(),
+        m_rowHeightOverrides.end(),
+        [](double h) { return h > 0.1; }
+    );
+    markRowLayoutDirty();
+}
+
+void DataGridView::ensureRowLayoutCache() const
+{
+    if (!m_rowLayoutDirty) {
+        return;
+    }
+
+    const int rows = m_engine ? std::max(0, m_engine->rowCount()) : 0;
+    m_rowOffsets.assign(rows + 1, 0.0);
+
+    for (int r = 0; r < rows; ++r) {
+        const double overrideHeight = (r < static_cast<int>(m_rowHeightOverrides.size()))
+            ? m_rowHeightOverrides[r]
+            : 0.0;
+        const double rowHeight = overrideHeight > 0.1 ? overrideHeight : m_rowHeight;
+        m_rowOffsets[r + 1] = m_rowOffsets[r] + rowHeight;
+    }
+
+    m_rowLayoutDirty = false;
+}
+
+double DataGridView::rowHeightForRow(int row) const
+{
+    if (!m_engine || row < 0 || row >= m_engine->rowCount()) {
+        return m_rowHeight;
+    }
+    ensureRowLayoutCache();
+    if (row + 1 >= static_cast<int>(m_rowOffsets.size())) {
+        return m_rowHeight;
+    }
+    return m_rowOffsets[row + 1] - m_rowOffsets[row];
+}
+
+double DataGridView::rowTopContentY(int row) const
+{
+    ensureRowLayoutCache();
+    if (row <= 0) return 0.0;
+    if (row >= static_cast<int>(m_rowOffsets.size())) {
+        return m_rowOffsets.empty() ? 0.0 : m_rowOffsets.back();
+    }
+    return m_rowOffsets[row];
+}
+
+int DataGridView::rowAtContentY(double y) const
+{
+    if (!m_engine || y < 0.0) {
+        return -1;
+    }
+
+    ensureRowLayoutCache();
+    if (m_rowOffsets.empty()) {
+        return -1;
+    }
+
+    const double total = m_rowOffsets.back();
+    if (y >= total) {
+        return -1;
+    }
+
+    auto it = std::upper_bound(m_rowOffsets.begin(), m_rowOffsets.end(), y);
+    int row = static_cast<int>(std::distance(m_rowOffsets.begin(), it)) - 1;
+    row = std::max(0, row);
+    row = std::min(row, m_engine->rowCount() - 1);
+    return row;
+}
+
+void DataGridView::setRowHeightForRow(int row, double height)
+{
+    if (!m_engine || row < 0 || row >= m_engine->rowCount()) {
+        return;
+    }
+
+    const double clampedHeight = std::clamp(height, m_minRowHeight, m_maxRowHeight);
+    const double storedHeight = std::abs(clampedHeight - m_rowHeight) <= 0.1 ? 0.0 : clampedHeight;
+
+    if (row >= static_cast<int>(m_rowHeightOverrides.size())) {
+        m_rowHeightOverrides.resize(m_engine->rowCount(), 0.0);
+    }
+
+    const double previousHeight = m_rowHeightOverrides[row];
+    if (std::abs(previousHeight - storedHeight) <= 0.1) {
+        return;
+    }
+
+    m_rowHeightOverrides[row] = storedHeight;
+    if (storedHeight > 0.1) {
+        m_hasRowOverrides = true;
+    } else if (previousHeight > 0.1) {
+        m_hasRowOverrides = std::any_of(
+            m_rowHeightOverrides.begin(),
+            m_rowHeightOverrides.end(),
+            [](double h) { return h > 0.1; }
+        );
+    }
+
+    markRowLayoutDirty();
+    clampScrollOffsets();
+    emit contentSizeChanged();
+    update();
+}
+
 int DataGridView::columnAtPosition(double x) const
 {
     if (!m_engine || x < m_gutterWidth) return -1;
@@ -70,11 +187,39 @@ int DataGridView::columnResizeHandleAt(double x, double y) const
     return -1;
 }
 
-bool DataGridView::rowResizeHandleAt(double x, double y) const
+int DataGridView::rowResizeHandleAt(double x, double y) const
 {
-    if (!m_engine) return false;
-    if (x < 0 || x > m_gutterWidth) return false;
-    return std::abs(y - m_rowHeight) <= m_rowResizeHitArea;
+    if (!m_engine) return kRowResizeHandleNone;
+    if (x < 0 || x > m_gutterWidth) return kRowResizeHandleNone;
+
+    if (std::abs(y - m_rowHeight) <= m_rowResizeHitArea) {
+        return kRowResizeHandleAll;
+    }
+
+    if (y <= m_rowHeight) {
+        return kRowResizeHandleNone;
+    }
+
+    const double contentY = (y - m_rowHeight) + m_contentY;
+    const int row = rowAtContentY(contentY);
+    if (row < 0) {
+        return kRowResizeHandleNone;
+    }
+
+    const int rowCount = m_engine->rowCount();
+    const int candidates[2] = { row, row - 1 };
+    for (int candidate : candidates) {
+        if (candidate < 0 || candidate >= rowCount) {
+            continue;
+        }
+
+        const double boundaryY = rowTopContentY(candidate + 1);
+        if (std::abs(contentY - boundaryY) <= m_rowResizeHitArea) {
+            return candidate;
+        }
+    }
+
+    return kRowResizeHandleNone;
 }
 
 double DataGridView::columnRightX(int column) const
@@ -169,10 +314,12 @@ void DataGridView::clampScrollOffsets()
 void DataGridView::updateHoverState(double x, double y)
 {
     if (!m_engine) {
-        if (m_hoveredHeaderColumn != -1 || m_hoveredResizeColumn != -1 || m_hoveredRowResizeHandle) {
+        if (m_hoveredHeaderColumn != -1
+                || m_hoveredResizeColumn != -1
+                || m_hoveredRowResizeHandle != kRowResizeHandleNone) {
             m_hoveredHeaderColumn = -1;
             m_hoveredResizeColumn = -1;
-            m_hoveredRowResizeHandle = false;
+            m_hoveredRowResizeHandle = kRowResizeHandleNone;
             update();
         }
         refreshCursor();
@@ -181,21 +328,26 @@ void DataGridView::updateHoverState(double x, double y)
 
     const int previousHoveredHeader = m_hoveredHeaderColumn;
     const int previousHoveredResizeColumn = m_hoveredResizeColumn;
-    const bool previousHoveredRowHandle = m_hoveredRowResizeHandle;
+    const int previousHoveredRowHandle = m_hoveredRowResizeHandle;
 
     if (m_resizingColumn != -1) {
         m_hoveredResizeColumn = m_resizingColumn;
-        m_hoveredRowResizeHandle = false;
+        m_hoveredRowResizeHandle = kRowResizeHandleNone;
         m_hoveredHeaderColumn = -1;
-    } else if (m_resizingRowHeight) {
+    } else if (m_resizingRowResizeHandle != kRowResizeHandleNone) {
         m_hoveredResizeColumn = -1;
-        m_hoveredRowResizeHandle = true;
+        m_hoveredRowResizeHandle = m_resizingRowResizeHandle;
         m_hoveredHeaderColumn = -1;
     } else {
         m_hoveredRowResizeHandle = rowResizeHandleAt(x, y);
-        m_hoveredResizeColumn = m_hoveredRowResizeHandle ? -1 : columnResizeHandleAt(x, y);
+        m_hoveredResizeColumn = m_hoveredRowResizeHandle != kRowResizeHandleNone
+            ? -1
+            : columnResizeHandleAt(x, y);
 
-        if (m_hoveredResizeColumn != -1 || m_hoveredRowResizeHandle || y >= m_rowHeight || x < m_gutterWidth) {
+        if (m_hoveredResizeColumn != -1
+                || m_hoveredRowResizeHandle != kRowResizeHandleNone
+                || y >= m_rowHeight
+                || x < m_gutterWidth) {
             m_hoveredHeaderColumn = -1;
         } else {
             m_hoveredHeaderColumn = columnAtPosition(x);
@@ -218,7 +370,8 @@ void DataGridView::refreshCursor()
         return;
     }
 
-    if (m_resizingRowHeight || m_hoveredRowResizeHandle) {
+    if (m_resizingRowResizeHandle != kRowResizeHandleNone
+            || m_hoveredRowResizeHandle != kRowResizeHandleNone) {
         setCursor(QCursor(Qt::SplitVCursor));
         return;
     }
@@ -234,11 +387,13 @@ void DataGridView::hoverMoveEvent(QHoverEvent* event)
 
 void DataGridView::hoverLeaveEvent(QHoverEvent* event)
 {
-    if (m_resizingColumn == -1 && !m_resizingRowHeight) {
-        if (m_hoveredHeaderColumn != -1 || m_hoveredResizeColumn != -1 || m_hoveredRowResizeHandle) {
+    if (m_resizingColumn == -1 && m_resizingRowResizeHandle == kRowResizeHandleNone) {
+        if (m_hoveredHeaderColumn != -1
+                || m_hoveredResizeColumn != -1
+                || m_hoveredRowResizeHandle != kRowResizeHandleNone) {
             m_hoveredHeaderColumn = -1;
             m_hoveredResizeColumn = -1;
-            m_hoveredRowResizeHandle = false;
+            m_hoveredRowResizeHandle = kRowResizeHandleNone;
             update();
         }
     }
@@ -254,13 +409,16 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
     const double y = event->position().y();
 
     if (event->button() == Qt::LeftButton) {
-        if (rowResizeHandleAt(x, y)) {
-            m_resizingRowHeight = true;
+        const int rowHandle = rowResizeHandleAt(x, y);
+        if (rowHandle != kRowResizeHandleNone) {
+            m_resizingRowResizeHandle = rowHandle;
             m_rowResizeStartY = y;
-            m_rowResizeInitialHeight = m_rowHeight;
+            m_rowResizeInitialHeight = (rowHandle == kRowResizeHandleAll)
+                ? m_rowHeight
+                : rowHeightForRow(rowHandle);
             m_hoveredHeaderColumn = -1;
             m_hoveredResizeColumn = -1;
-            m_hoveredRowResizeHandle = true;
+            m_hoveredRowResizeHandle = rowHandle;
             setKeepMouseGrab(true);
             refreshCursor();
             update();
@@ -275,7 +433,7 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
             m_resizeInitialWidth = std::max(1, m_engine->columnDisplayWidth(resizeColumn));
             m_hoveredHeaderColumn = -1;
             m_hoveredResizeColumn = resizeColumn;
-            m_hoveredRowResizeHandle = false;
+            m_hoveredRowResizeHandle = kRowResizeHandleNone;
             setKeepMouseGrab(true);
             refreshCursor();
             update();
@@ -290,7 +448,7 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
         }
 
         const double absoluteY = y - m_rowHeight + m_contentY;
-        const int row = static_cast<int>(std::floor(absoluteY / m_rowHeight));
+        const int row = rowAtContentY(absoluteY);
         if (row < 0 || row >= m_engine->rowCount()) {
             return;
         }
@@ -338,7 +496,7 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
 
     // Calculate Row
     const double absoluteY = y - m_rowHeight + m_contentY;
-    const int row = static_cast<int>(std::floor(absoluteY / m_rowHeight));
+    const int row = rowAtContentY(absoluteY);
     if (row < 0 || row >= m_engine->rowCount()) {
         if (m_selectedRow != -1) {
             m_selectedRow = -1;
@@ -378,11 +536,16 @@ void DataGridView::mouseMoveEvent(QMouseEvent* event)
         return;
     }
 
-    if (m_resizingRowHeight) {
+    if (m_resizingRowResizeHandle != kRowResizeHandleNone) {
         const double delta = y - m_rowResizeStartY;
         const double newHeight = std::clamp(m_rowResizeInitialHeight + delta, m_minRowHeight, m_maxRowHeight);
-        setRowHeight(newHeight);
-        clampScrollOffsets();
+
+        if (m_resizingRowResizeHandle == kRowResizeHandleAll) {
+            setRowHeight(newHeight);
+        } else {
+            setRowHeightForRow(m_resizingRowResizeHandle, newHeight);
+        }
+
         updateHoverState(x, y);
         event->accept();
         return;
@@ -406,12 +569,17 @@ void DataGridView::mouseReleaseEvent(QMouseEvent* event)
             return;
         }
 
-        if (m_resizingRowHeight) {
-            m_resizingRowHeight = false;
+        if (m_resizingRowResizeHandle != kRowResizeHandleNone) {
+            const int resizedHandle = m_resizingRowResizeHandle;
+            m_resizingRowResizeHandle = kRowResizeHandleNone;
             setKeepMouseGrab(false);
             clampScrollOffsets();
             updateHoverState(event->position().x(), event->position().y());
-            emit rowHeightResized(m_rowHeight);
+            if (resizedHandle == kRowResizeHandleAll) {
+                emit rowHeightResized(m_rowHeight);
+            } else {
+                emit rowResized(resizedHandle, rowHeightForRow(resizedHandle));
+            }
             event->accept();
             return;
         }
@@ -430,10 +598,18 @@ void DataGridView::mouseDoubleClickEvent(QMouseEvent* event)
     const double x = event->position().x();
     const double y = event->position().y();
 
-    if (rowResizeHandleAt(x, y)) {
-        setRowHeight(m_defaultRowHeight);
+    const int rowHandle = rowResizeHandleAt(x, y);
+    if (rowHandle != kRowResizeHandleNone) {
+        if (rowHandle == kRowResizeHandleAll) {
+            setRowHeight(m_defaultRowHeight);
+            emit rowHeightResized(m_rowHeight);
+        } else {
+            // Reset this specific row to the global row height baseline.
+            setRowHeightForRow(rowHandle, m_rowHeight);
+            emit rowResized(rowHandle, rowHeightForRow(rowHandle));
+        }
         clampScrollOffsets();
-        emit rowHeightResized(m_rowHeight);
+        updateHoverState(x, y);
         event->accept();
         return;
     }
@@ -468,6 +644,9 @@ void DataGridView::setEngine(DataGridEngine* engine)
     }
 
     m_engine = engine;
+    m_rowHeightOverrides.clear();
+    m_hasRowOverrides = false;
+    markRowLayoutDirty();
 
     if (m_engine) {
         connect(m_engine, &DataGridEngine::dataChanged, this, &DataGridView::onEngineUpdated);
@@ -480,6 +659,7 @@ void DataGridView::setEngine(DataGridEngine* engine)
 
 void DataGridView::onEngineUpdated()
 {
+    syncRowOverridesWithEngine();
     clampScrollOffsets();
     emit contentSizeChanged();
     update();
@@ -508,13 +688,26 @@ void DataGridView::setContentX(double x)
 void DataGridView::setRowHeight(double h)
 {
     const double clampedHeight = std::clamp(h, m_minRowHeight, m_maxRowHeight);
-    if (std::abs(m_rowHeight - clampedHeight) > 0.1) {
-        m_rowHeight = clampedHeight;
-        clampScrollOffsets();
-        emit rowHeightChanged();
-        emit contentSizeChanged();
-        update();
+    const bool baseHeightChanged = std::abs(m_rowHeight - clampedHeight) > 0.1;
+
+    if (!baseHeightChanged && !m_hasRowOverrides) {
+        return;
     }
+
+    m_rowHeight = clampedHeight;
+
+    if (m_hasRowOverrides && !m_rowHeightOverrides.empty()) {
+        std::fill(m_rowHeightOverrides.begin(), m_rowHeightOverrides.end(), 0.0);
+        m_hasRowOverrides = false;
+    }
+
+    markRowLayoutDirty();
+    clampScrollOffsets();
+    if (baseHeightChanged) {
+        emit rowHeightChanged();
+    }
+    emit contentSizeChanged();
+    update();
 }
 
 void DataGridView::setHeaderColor(const QColor& c)
@@ -575,7 +768,7 @@ double DataGridView::totalHeight() const
 {
     if (!m_engine) return 0;
     // Header + rows
-    return m_rowHeight + (m_engine->rowCount() * m_rowHeight);
+    return m_rowHeight + rowTopContentY(m_engine->rowCount());
 }
 
 double DataGridView::totalWidth() const
@@ -592,42 +785,37 @@ void DataGridView::paint(QPainter* painter)
     const double w = width();
     const double h = height();
     const int cols = m_engine->columnCount();
+    const int rowCount = m_engine->rowCount();
 
     // Draw Data
-    int startRow = static_cast<int>(std::floor(m_contentY / m_rowHeight));
-    int endRow = static_cast<int>(std::ceil((m_contentY + h) / m_rowHeight));
-    if (startRow < 0) startRow = 0;
-    if (endRow > m_engine->rowCount()) endRow = m_engine->rowCount();
+    int startRow = rowAtContentY(m_contentY);
+    if (startRow < 0) startRow = rowCount;
+    double currentY = m_rowHeight + rowTopContentY(startRow) - m_contentY;
 
     painter->save();
-    // Clip data area (below header, right of gutter)
     painter->setClipRect(m_gutterWidth, m_rowHeight, w - m_gutterWidth, h - m_rowHeight);
-
-    double currentY = (startRow * m_rowHeight) - m_contentY + m_rowHeight;
 
     QFont font = painter->font();
     font.setPixelSize(12);
     painter->setFont(font);
 
-    for (int r = startRow; r < endRow; ++r) {
+    for (int r = startRow; r < rowCount && currentY < h; ++r) {
+        const double rowH = rowHeightForRow(r);
         double currentX = m_gutterWidth - m_contentX;
 
         for (int c = 0; c < cols; ++c) {
             const auto col = m_engine->getColumn(c);
             const double colW = std::max(1, col.displayWidth);
 
-            // Optimization: skip if col is out of view
             if (currentX + colW > m_gutterWidth && currentX < w) {
-                QRectF cellRect(currentX, currentY, colW, m_rowHeight);
+                QRectF cellRect(currentX, currentY, colW, rowH);
 
-                // Background (Zebra Striping)
                 if (r != m_selectedRow || c != m_selectedCol) {
                     if (r % 2 == 0 && m_alternateRowColor.alpha() > 0) {
                         painter->fillRect(cellRect, m_alternateRowColor);
                     }
                 }
 
-                // Selection
                 if (r == m_selectedRow && c == m_selectedCol) {
                     painter->save();
                     painter->setPen(Qt::NoPen);
@@ -636,7 +824,6 @@ void DataGridView::paint(QPainter* painter)
                     painter->restore();
                 }
 
-                // Borders
                 painter->setPen(m_lineColor);
                 painter->drawRect(cellRect);
 
@@ -653,7 +840,6 @@ void DataGridView::paint(QPainter* painter)
                 const QString text = isNull ? QStringLiteral("NULL") : dataVal.toString();
                 QColor cellTextColor = m_textColor;
 
-                // If selected, force dark text for better contrast with the colored background
                 if (r == m_selectedRow && c == m_selectedCol) {
                     cellTextColor = QColor("#000000");
 
@@ -674,7 +860,7 @@ void DataGridView::paint(QPainter* painter)
             }
             currentX += colW;
         }
-        currentY += m_rowHeight;
+        currentY += rowH;
     }
 
     painter->restore();
@@ -685,16 +871,17 @@ void DataGridView::paint(QPainter* painter)
     painter->fillRect(0, m_rowHeight, m_gutterWidth, h - m_rowHeight, m_headerColor);
     painter->setFont(font);
 
-    currentY = (startRow * m_rowHeight) - m_contentY + m_rowHeight;
-    for (int r = startRow; r < endRow; ++r) {
-        QRectF numRect(0, currentY, m_gutterWidth, m_rowHeight);
+    currentY = m_rowHeight + rowTopContentY(startRow) - m_contentY;
+    for (int r = startRow; r < rowCount && currentY < h; ++r) {
+        const double rowH = rowHeightForRow(r);
+        QRectF numRect(0, currentY, m_gutterWidth, rowH);
 
         painter->setPen(m_lineColor);
         painter->drawRect(numRect);
 
         painter->setPen(m_textColor);
         painter->drawText(numRect, Qt::AlignCenter, QString::number(r + 1));
-        currentY += m_rowHeight;
+        currentY += rowH;
     }
     painter->restore();
 
@@ -750,7 +937,12 @@ void DataGridView::paint(QPainter* painter)
     // Row-height grip hint in the corner for discoverability.
     painter->save();
     QColor gripColor = m_textColor;
-    gripColor.setAlphaF(m_hoveredRowResizeHandle || m_resizingRowHeight ? 0.65 : 0.25);
+    gripColor.setAlphaF(
+        m_hoveredRowResizeHandle != kRowResizeHandleNone
+            || m_resizingRowResizeHandle != kRowResizeHandleNone
+            ? 0.65
+            : 0.25
+    );
     painter->setPen(QPen(gripColor, 1));
     const double cx = m_gutterWidth / 2.0;
     const double y1 = m_rowHeight - 8;
@@ -772,8 +964,18 @@ void DataGridView::paint(QPainter* painter)
         }
     }
 
-    if (m_resizingRowHeight || m_hoveredRowResizeHandle) {
-        painter->drawLine(QPointF(0, m_rowHeight), QPointF(w, m_rowHeight));
+    const int rowResizeHandle = m_resizingRowResizeHandle != kRowResizeHandleNone
+        ? m_resizingRowResizeHandle
+        : m_hoveredRowResizeHandle;
+    if (rowResizeHandle != kRowResizeHandleNone) {
+        double guideY = m_rowHeight;
+        if (rowResizeHandle >= 0) {
+            guideY = m_rowHeight + rowTopContentY(rowResizeHandle + 1) - m_contentY;
+        }
+
+        if (guideY >= 0 && guideY <= h) {
+            painter->drawLine(QPointF(0, guideY), QPointF(w, guideY));
+        }
     }
     painter->restore();
 }

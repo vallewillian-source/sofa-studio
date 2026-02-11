@@ -186,6 +186,10 @@ Rectangle {
                 onRowHeightResized: (height) => {
                     showToast("Altura das linhas: " + Math.round(height) + " px")
                 }
+
+                onRowResized: (row, height) => {
+                    showToast("Linha " + (row + 1) + ": " + Math.round(height) + " px")
+                }
             }
             
             AppMenu {
