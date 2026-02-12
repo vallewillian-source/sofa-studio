@@ -1943,18 +1943,11 @@ ApplicationWindow {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: "Manual WHERE clause"
+                                text: "Manual <span style=\"color:" + rightFiltersDrawer.accentColor + ";\">where</span> clause"
+                                textFormat: Text.RichText
                                 color: Theme.textPrimary
                                 font.pixelSize: 12
                                 font.bold: true
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "This text is injected directly after WHERE in the generated SELECT query."
-                                color: Theme.textSecondary
-                                font.pixelSize: 11
-                                wrapMode: Text.WordWrap
                             }
 
                             Rectangle {
