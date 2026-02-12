@@ -33,6 +33,7 @@ Rectangle {
     signal previousClicked()
     signal nextClicked()
     signal sortRequested(int columnIndex, bool ascending)
+    signal editRowRequested(int rowIndex)
     
     function showToast(message) {
         toastText = message
@@ -217,7 +218,11 @@ Rectangle {
                 onCellContextMenuRequested: (row, col, x, y) => {
                     contextRow = row
                     contextCol = col
-                    contextMenu.popup(view, x, y)
+                    if (col === -1) {
+                        rowContextMenu.popup(view, x, y)
+                    } else {
+                        cellContextMenu.popup(view, x, y)
+                    }
                 }
 
                 onSortRequested: (columnIndex, ascending) => {
@@ -310,7 +315,15 @@ Rectangle {
             }
             
             AppMenu {
-                id: contextMenu
+                id: cellContextMenu
+
+                Controls.MenuItem {
+                    text: "Edit Row"
+                    enabled: contextRow !== -1
+                    onTriggered: root.editRowRequested(contextRow)
+                }
+
+                Controls.MenuSeparator {}
                 
                 Controls.MenuItem {
                     text: "Copy"
@@ -330,21 +343,45 @@ Rectangle {
                     }
                 }
                 
+                Controls.MenuSeparator {}
+                
                 Controls.MenuItem {
                     text: "Copy Row as JSON"
-                    enabled: contextRow !== -1 && contextCol !== -1
+                    enabled: contextRow !== -1
                     onTriggered: copyAndToast(rowAsJson())
                 }
                 
                 Controls.MenuItem {
                     text: "Copy Row as SQL"
-                    enabled: contextRow !== -1 && contextCol !== -1
+                    enabled: contextRow !== -1
                     onTriggered: copyAndToast(rowAsSql())
                 }
                 
                 Controls.MenuItem {
                     text: "Copy Row as Markdown"
-                    enabled: contextRow !== -1 && contextCol !== -1
+                    enabled: contextRow !== -1
+                    onTriggered: copyAndToast(rowAsMarkdown())
+                }
+            }
+
+            AppMenu {
+                id: rowContextMenu
+
+                Controls.MenuItem {
+                    text: "Copy Row as JSON"
+                    enabled: contextRow !== -1
+                    onTriggered: copyAndToast(rowAsJson())
+                }
+
+                Controls.MenuItem {
+                    text: "Copy Row as SQL"
+                    enabled: contextRow !== -1
+                    onTriggered: copyAndToast(rowAsSql())
+                }
+
+                Controls.MenuItem {
+                    text: "Copy Row as Markdown"
+                    enabled: contextRow !== -1
                     onTriggered: copyAndToast(rowAsMarkdown())
                 }
             }

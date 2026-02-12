@@ -704,6 +704,15 @@ ApplicationWindow {
                 rowEditorModal.openForAdd(tableRoot.schema, tableRoot.tableName, cols)
             }
 
+            function openEditRowModal(rowIndex) {
+                if (rowIndex === undefined || rowIndex === null || rowIndex < 0) return
+                var cols = addRowColumns()
+                if (cols.length === 0) return
+                var rowValues = gridEngine.getRow(rowIndex)
+                if (!rowValues || rowValues.length === 0) return
+                rowEditorModal.openForEdit(tableRoot.schema, tableRoot.tableName, cols, rowValues)
+            }
+
             function buildInsertSql(entries) {
                 var quotedCols = []
                 var quotedVals = []
@@ -734,6 +743,44 @@ ApplicationWindow {
                     return "INSERT INTO " + target + " DEFAULT VALUES;"
                 }
                 return "INSERT INTO " + target + " (" + quotedCols.join(", ") + ") VALUES (" + quotedVals.join(", ") + ");"
+            }
+
+            function buildUpdateSql(entries) {
+                if (!entries || entries.length === 0) return ""
+
+                var target = quoteIdentifier(tableRoot.schema) + "." + quoteIdentifier(tableRoot.tableName)
+                var setParts = []
+                var whereParts = []
+
+                for (var i = 0; i < entries.length; i++) {
+                    var entry = entries[i]
+                    var colName = quoteIdentifier(entry.name)
+                    var valueText = String(entry.value === null || entry.value === undefined ? "" : entry.value)
+                    var trimmed = valueText.trim()
+                    var original = entry.originalValue
+                    var originalText = String(original === null || original === undefined ? "" : original)
+
+                    if (valueText !== originalText) {
+                        if (trimmed.toUpperCase() === "NULL") {
+                            setParts.push(colName + " = NULL")
+                        } else {
+                            setParts.push(colName + " = '" + valueText.replace(/'/g, "''") + "'")
+                        }
+                    }
+
+                    if (original === null || original === undefined) {
+                        whereParts.push(colName + " IS NULL")
+                    } else if (typeof original === "number") {
+                        whereParts.push(colName + " = " + String(original))
+                    } else if (typeof original === "boolean") {
+                        whereParts.push(colName + " = " + (original ? "TRUE" : "FALSE"))
+                    } else {
+                        whereParts.push(colName + " = '" + String(original).replace(/'/g, "''") + "'")
+                    }
+                }
+
+                if (setParts.length === 0 || whereParts.length === 0) return ""
+                return "UPDATE " + target + " SET " + setParts.join(", ") + " WHERE " + whereParts.join(" AND ") + ";"
             }
 
             color: Theme.background
@@ -938,6 +985,9 @@ ApplicationWindow {
                 onPreviousClicked: tableRoot.previousPage()
                 onNextClicked: tableRoot.nextPage()
                 onAddRowClicked: tableRoot.openAddRowModal()
+                onEditRowRequested: (rowIndex) => {
+                    tableRoot.openEditRowModal(rowIndex)
+                }
                 onSortRequested: (columnIndex, ascending) => {
                     var columnName = gridEngine.getColumnName(columnIndex)
                     if (!columnName || columnName.length === 0) return
@@ -957,13 +1007,24 @@ ApplicationWindow {
 
                     errorMessage = ""
                     submitting = true
-                    tableRoot.insertRequestTag = "insert:" + tableRoot.schema + "." + tableRoot.tableName + ":" + Date.now()
+                    var mode = rowEditorModal.editing ? "update" : "insert"
+                    tableRoot.insertRequestTag = mode + ":" + tableRoot.schema + "." + tableRoot.tableName + ":" + Date.now()
 
-                    var insertSql = tableRoot.buildInsertSql(entries)
-                    var ok = App.runQueryAsync(insertSql, tableRoot.insertRequestTag)
+                    var mutationSql = rowEditorModal.editing
+                        ? tableRoot.buildUpdateSql(entries)
+                        : tableRoot.buildInsertSql(entries)
+                    if (!mutationSql || mutationSql.length === 0) {
+                        submitting = false
+                        errorMessage = rowEditorModal.editing ? "Nenhuma alteração detectada." : "Falha ao montar INSERT."
+                        return
+                    }
+
+                    var ok = App.runQueryAsync(mutationSql, tableRoot.insertRequestTag)
                     if (!ok) {
                         submitting = false
-                        errorMessage = App.lastError.length > 0 ? App.lastError : "Falha ao executar INSERT."
+                        errorMessage = App.lastError.length > 0
+                            ? App.lastError
+                            : (rowEditorModal.editing ? "Falha ao executar UPDATE." : "Falha ao executar INSERT.")
                     }
                 }
             }

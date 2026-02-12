@@ -485,13 +485,23 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
     }
 
     if (event->button() == Qt::RightButton) {
-        if (y < m_rowHeight || x < m_gutterWidth) {
+        if (y < m_rowHeight) {
             return;
         }
 
         const double absoluteY = y - m_rowHeight + m_contentY;
         const int row = rowAtContentY(absoluteY);
         if (row < 0 || row >= m_engine->rowCount()) {
+            return;
+        }
+
+        if (x <= m_gutterWidth) {
+            if (m_selectedRow != row || m_selectedCol != -1) {
+                m_selectedRow = row;
+                m_selectedCol = -1;
+                update();
+            }
+            emit cellContextMenuRequested(row, -1, x, y);
             return;
         }
 
@@ -532,6 +542,16 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
             m_selectedCol = -1;
             update();
         }
+        return;
+    }
+
+    if (x <= m_gutterWidth) {
+        if (m_selectedRow != row || m_selectedCol != -1) {
+            m_selectedRow = row;
+            m_selectedCol = -1;
+            update();
+        }
+        event->accept();
         return;
     }
 
@@ -852,6 +872,9 @@ void DataGridView::paint(QPainter* painter)
     for (int r = startRow; r < rowCount && currentY < h; ++r) {
         const double rowH = rowHeightForRow(r);
         double currentX = m_gutterWidth - m_contentX;
+        const bool isSelectedRow = (r == m_selectedRow);
+        QColor rowSelectionColor = m_selectionColor;
+        rowSelectionColor.setAlphaF(0.2);
 
         for (int c = 0; c < cols; ++c) {
             const auto col = m_engine->getColumn(c);
@@ -859,14 +882,17 @@ void DataGridView::paint(QPainter* painter)
 
             if (currentX + colW > m_gutterWidth && currentX < w) {
                 QRectF cellRect(currentX, currentY, colW, rowH);
+                const bool isSelectedCell = isSelectedRow && (c == m_selectedCol);
 
-                if (r != m_selectedRow || c != m_selectedCol) {
+                if (isSelectedRow) {
+                    painter->fillRect(cellRect, rowSelectionColor);
+                } else {
                     if (r % 2 == 0 && m_alternateRowColor.alpha() > 0) {
                         painter->fillRect(cellRect, m_alternateRowColor);
                     }
                 }
 
-                if (r == m_selectedRow && c == m_selectedCol) {
+                if (isSelectedCell) {
                     painter->save();
                     painter->setPen(Qt::NoPen);
                     painter->setBrush(m_selectionColor);
@@ -890,7 +916,7 @@ void DataGridView::paint(QPainter* painter)
                 const QString text = isNull ? QStringLiteral("NULL") : dataVal.toString();
                 QColor cellTextColor = m_textColor;
 
-                if (r == m_selectedRow && c == m_selectedCol) {
+                if (isSelectedCell) {
                     cellTextColor = QColor("#000000");
 
                     QFont selectedFont = font;
@@ -925,6 +951,11 @@ void DataGridView::paint(QPainter* painter)
     for (int r = startRow; r < rowCount && currentY < h; ++r) {
         const double rowH = rowHeightForRow(r);
         QRectF numRect(0, currentY, m_gutterWidth, rowH);
+        if (r == m_selectedRow) {
+            QColor rowSelectionColor = m_selectionColor;
+            rowSelectionColor.setAlphaF(0.2);
+            painter->fillRect(numRect, rowSelectionColor);
+        }
 
         painter->setPen(m_lineColor);
         painter->drawRect(numRect);
