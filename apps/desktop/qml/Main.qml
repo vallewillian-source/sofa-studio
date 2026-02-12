@@ -17,6 +17,8 @@ ApplicationWindow {
     
     property bool isRestoring: false
     property int resizeHandleSize: 6
+    property int filtersPanelWidth: 320
+    property int pendingDeleteConnectionId: -1
 
     ListModel {
         id: tabModel
@@ -218,7 +220,8 @@ ApplicationWindow {
             }
             
             onRequestDeleteConnection: (id) => {
-                App.deleteConnection(id)
+                root.pendingDeleteConnectionId = Number(id)
+                deleteConnectionConfirmPopup.open()
             }
         }
 
@@ -986,6 +989,43 @@ ApplicationWindow {
                     }
 
                     Item { Layout.fillWidth: true }
+
+                    AppButton {
+                        id: btnFilters
+                        text: "Filters"
+                        isPrimary: false
+                        isOutline: true
+                        accentColor: tableRoot.getActiveConnectionColor()
+                        Layout.preferredHeight: 24
+                        spacing: 4
+                        opacity: 1.0
+                        font.weight: Font.DemiBold
+                        contentItem: RowLayout {
+                            spacing: 6
+                            Text {
+                                text: "Filters"
+                                color: btnFilters.textColor
+                                font: btnFilters.font
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                            Text {
+                                text: "›"
+                                color: btnFilters.textColor
+                                font.pixelSize: 14
+                                font.bold: true
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                        }
+                        onClicked: {
+                            if (rightFiltersDrawer.visible) {
+                                rightFiltersDrawer.close()
+                            } else {
+                                rightFiltersDrawer.open()
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1338,6 +1378,193 @@ ApplicationWindow {
                                 btnCount.finishLoading(total)
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    Drawer {
+        id: rightFiltersDrawer
+        parent: Overlay.overlay
+        edge: Qt.RightEdge
+        modal: false
+        dim: false
+        interactive: false
+        closePolicy: Popup.NoAutoClose
+        width: root.filtersPanelWidth
+        height: root.height - appHeader.height
+        y: appHeader.height
+        z: 200
+
+        background: Rectangle {
+            color: Theme.sidebarSurface
+            border.color: Theme.border
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 56
+                color: Theme.surface
+                readonly property color accentColor: {
+                    var currentId = App.activeConnectionId
+                    if (currentId === -1) return Theme.accent
+                    var conns = App.connections
+                    for (var i = 0; i < conns.length; i++) {
+                        if (conns[i].id === currentId) {
+                            return conns[i].color && conns[i].color.length > 0 ? conns[i].color : Theme.accent
+                        }
+                    }
+                    return Theme.accent
+                }
+                function withAlpha(colorValue, alphaValue) {
+                    var c = Qt.color(colorValue)
+                    return Qt.rgba(c.r, c.g, c.b, alphaValue)
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: 2
+                    color: parent.withAlpha(parent.accentColor, 0.65)
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: Theme.border
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.spacingMedium
+                    anchors.rightMargin: Theme.spacingMedium
+                    anchors.topMargin: 8
+                    anchors.bottomMargin: 8
+                    spacing: Theme.spacingMedium
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+
+                        Text {
+                            text: "Filters"
+                            color: Theme.textPrimary
+                            font.pixelSize: 14
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            text: "Refine this dataset with smart conditions"
+                            color: Theme.textSecondary
+                            font.pixelSize: 11
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    AppButton {
+                        id: btnCloseFiltersPanel
+                        text: "×"
+                        isPrimary: false
+                        isOutline: false
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        horizontalPadding: 0
+                        verticalPadding: 0
+                        font.pixelSize: 14
+                        contentItem: Text {
+                            text: "×"
+                            color: btnCloseFiltersPanel.textColor
+                            font.pixelSize: btnCloseFiltersPanel.font.pixelSize
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        onClicked: rightFiltersDrawer.close()
+                    }
+                }
+            }
+
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+        }
+    }
+
+    Popup {
+        id: deleteConnectionConfirmPopup
+        parent: Overlay.overlay
+        modal: true
+        focus: true
+        closePolicy: Popup.NoAutoClose
+        width: 380
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        padding: Theme.spacingLarge
+        implicitHeight: deleteConfirmContent.implicitHeight + topPadding + bottomPadding
+        onClosed: {
+            root.pendingDeleteConnectionId = -1
+        }
+
+        background: Rectangle {
+            color: Theme.surface
+            border.color: Theme.border
+            border.width: 1
+            radius: 8
+        }
+
+        contentItem: ColumnLayout {
+            id: deleteConfirmContent
+            width: deleteConnectionConfirmPopup.availableWidth
+            spacing: Theme.spacingMedium
+
+            Text {
+                Layout.fillWidth: true
+                text: "Delete connection?"
+                color: Theme.textPrimary
+                font.pixelSize: 15
+                font.bold: true
+                wrapMode: Text.WordWrap
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "This action removes the saved connection from Sofa Studio."
+                color: Theme.textSecondary
+                font.pixelSize: 12
+                wrapMode: Text.WordWrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingMedium
+
+                Item { Layout.fillWidth: true }
+
+                AppButton {
+                    text: "Cancel"
+                    isPrimary: false
+                    onClicked: deleteConnectionConfirmPopup.close()
+                }
+
+                AppButton {
+                    text: "Delete"
+                    isPrimary: true
+                    accentColor: Theme.error
+                    onClicked: {
+                        if (root.pendingDeleteConnectionId >= 0) {
+                            App.deleteConnection(root.pendingDeleteConnectionId)
+                        }
+                        deleteConnectionConfirmPopup.close()
                     }
                 }
             }

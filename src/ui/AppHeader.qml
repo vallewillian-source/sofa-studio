@@ -103,6 +103,8 @@ Rectangle {
                 errorModal.open()
             }
         }
+        onEditConnectionRequested: (id) => root.requestEditConnection(id)
+        onDeleteConnectionRequested: (id) => root.requestDeleteConnection(id)
     }
 
     ConnectionErrorModal {

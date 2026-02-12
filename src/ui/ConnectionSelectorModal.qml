@@ -1,12 +1,16 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import sofa.ui
 
 Popup {
     id: root
     width: 500
-    height: Math.min(mainLayout.implicitHeight + 20, 500)
+    readonly property real searchAreaHeight: 40
+    readonly property real dividerHeight: 1
+    readonly property real listAreaHeight: Math.min(connectionsList.contentHeight, 400)
+    height: Math.min(searchAreaHeight + dividerHeight + listAreaHeight, 500)
     x: (parent.width - width) / 2
     y: 40
     padding: 0
@@ -16,6 +20,8 @@ Popup {
 
     signal connectionSelected(int connectionId)
     signal newConnectionRequested()
+    signal editConnectionRequested(int connectionId)
+    signal deleteConnectionRequested(int connectionId)
 
     // Background
     background: Rectangle {
@@ -227,7 +233,9 @@ Popup {
                 }
                 
                 MouseArea {
+                    z: 0
                     anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         connectionsList.currentIndex = index
                         root.selectCurrent()
@@ -235,6 +243,7 @@ Popup {
                 }
 
                 RowLayout {
+                    z: 1
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
@@ -292,6 +301,97 @@ Popup {
                         color: Theme.textPrimary
                         font.bold: true
                         visible: model.id === App.activeConnectionId
+                    }
+
+                    RowLayout {
+                        visible: model.type === "connection"
+                        spacing: 2
+
+                        Controls.Button {
+                            Layout.preferredHeight: 22
+                            Layout.preferredWidth: 22
+                            padding: 0
+                            onClicked: {
+                                root.editConnectionRequested(model.id)
+                                root.close()
+                            }
+
+                            background: Rectangle {
+                                radius: 4
+                                color: parent.hovered ? Theme.surfaceHighlight : "transparent"
+                            }
+
+                            contentItem: Text {
+                                text: "✎"
+                                color: parent.hovered ? Theme.textPrimary : Theme.textSecondary
+                                font.pixelSize: 13
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Controls.ToolTip {
+                                visible: parent.hovered
+                                text: "Edit Connection"
+                                delay: 500
+
+                                contentItem: Text {
+                                    text: "Edit Connection"
+                                    font.pixelSize: 12
+                                    color: Theme.textPrimary
+                                }
+
+                                background: Rectangle {
+                                    color: Theme.surfaceHighlight
+                                    border.color: Theme.border
+                                    border.width: 1
+                                    radius: 4
+                                }
+                            }
+                        }
+
+                        Controls.Button {
+                            Layout.preferredHeight: 22
+                            Layout.preferredWidth: 22
+                            padding: 0
+                            onClicked: {
+                                root.deleteConnectionRequested(model.id)
+                                root.close()
+                            }
+
+                            background: Rectangle {
+                                radius: 4
+                                color: parent.hovered ? Theme.surfaceHighlight : "transparent"
+                            }
+
+                            contentItem: Text {
+                                text: "✕"
+                                color: parent.hovered ? Theme.error : Theme.textSecondary
+                                font.pixelSize: 13
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Controls.ToolTip {
+                                visible: parent.hovered
+                                text: "Delete Connection"
+                                delay: 500
+
+                                contentItem: Text {
+                                    text: "Delete Connection"
+                                    font.pixelSize: 12
+                                    color: Theme.textPrimary
+                                }
+
+                                background: Rectangle {
+                                    color: Theme.surfaceHighlight
+                                    border.color: Theme.border
+                                    border.width: 1
+                                    radius: 4
+                                }
+                            }
+                        }
                     }
                 }
             }
