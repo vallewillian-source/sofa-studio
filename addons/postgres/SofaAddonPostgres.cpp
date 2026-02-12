@@ -5,6 +5,7 @@
 #include <QSqlField>
 #include <QDebug>
 #include <QDateTime>
+#include <QHash>
 #include <QSet>
 
 namespace Sofa::Addons::Postgres {
@@ -280,22 +281,52 @@ DatasetPage PostgresQueryProvider::execute(const QString& queryStr, const Datase
 }
 
 DatasetPage PostgresQueryProvider::getDataset(const QString& schema, const QString& table, const DatasetRequest& request) {
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    if (!db.isOpen()) {
+        DatasetPage page;
+        page.warning = "Connection is not open";
+        return page;
+    }
+
     DatasetRequest req = request;
     int limit = req.limit > 0 ? req.limit : 100;
     int offset = req.offset > 0 ? req.offset : 0;
     int sqlLimit = limit + 1;
     req.limit = limit;
 
-    QString sql = QString("SELECT * FROM \"%1\".\"%2\" LIMIT %3 OFFSET %4")
-                      .arg(schema).arg(table).arg(sqlLimit).arg(offset);
+    QSqlQuery typeQuery(db);
+    typeQuery.prepare(
+        "SELECT column_name, udt_name "
+        "FROM information_schema.columns "
+        "WHERE table_schema = :schema "
+        "  AND table_name = :table"
+    );
+    typeQuery.bindValue(":schema", schema);
+    typeQuery.bindValue(":table", table);
+
+    QHash<QString, QString> sqlTypeByColumn;
+    if (typeQuery.exec()) {
+        while (typeQuery.next()) {
+            sqlTypeByColumn.insert(typeQuery.value(0).toString(), typeQuery.value(1).toString());
+        }
+    }
+
+    auto quoteIdentifier = [](const QString& identifier) {
+        return QString("\"%1\"").arg(QString(identifier).replace("\"", "\"\""));
+    };
+
+    QString sql = QString("SELECT * FROM %1.%2")
+                      .arg(quoteIdentifier(schema), quoteIdentifier(table));
+
+    if (req.hasSort && !req.sortColumn.isEmpty() && sqlTypeByColumn.contains(req.sortColumn)) {
+        sql += QString(" ORDER BY %1 %2")
+            .arg(quoteIdentifier(req.sortColumn), req.sortAscending ? "ASC" : "DESC");
+    }
+
+    sql += QString(" LIMIT %1 OFFSET %2").arg(sqlLimit).arg(offset);
     DatasetPage page = execute(sql, req);
 
     if (page.columns.empty()) {
-        return page;
-    }
-
-    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
-    if (!db.isOpen()) {
         return page;
     }
 
@@ -321,9 +352,11 @@ DatasetPage PostgresQueryProvider::getDataset(const QString& schema, const QStri
         }
     }
 
-    if (!primaryKeyColumns.isEmpty()) {
-        for (auto& col : page.columns) {
-            col.isPrimaryKey = primaryKeyColumns.contains(col.name);
+    for (auto& col : page.columns) {
+        col.isPrimaryKey = primaryKeyColumns.contains(col.name);
+        const QString sqlType = sqlTypeByColumn.value(col.name);
+        if (!sqlType.isEmpty()) {
+            col.rawType = sqlType;
         }
     }
 

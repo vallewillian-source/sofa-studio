@@ -22,6 +22,8 @@ class DataGridView : public QQuickPaintedItem {
     Q_PROPERTY(QColor gridLineColor READ gridLineColor WRITE setGridLineColor NOTIFY gridLineColorChanged)
     Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor NOTIFY textColorChanged)
     Q_PROPERTY(QColor resizeGuideColor READ resizeGuideColor WRITE setResizeGuideColor NOTIFY resizeGuideColorChanged)
+    Q_PROPERTY(int sortedColumnIndex READ sortedColumnIndex WRITE setSortedColumnIndex NOTIFY sortedColumnIndexChanged)
+    Q_PROPERTY(bool sortAscending READ sortAscending WRITE setSortAscending NOTIFY sortAscendingChanged)
 
 public:
     explicit DataGridView(QQuickItem* parent = nullptr);
@@ -56,6 +58,12 @@ public:
     QColor resizeGuideColor() const { return m_resizeGuideColor; }
     void setResizeGuideColor(const QColor& c);
 
+    int sortedColumnIndex() const { return m_sortedColumnIndex; }
+    void setSortedColumnIndex(int index);
+
+    bool sortAscending() const { return m_sortAscending; }
+    void setSortAscending(bool ascending);
+
     double totalHeight() const;
     double totalWidth() const;
     
@@ -73,8 +81,10 @@ signals:
     void gridLineColorChanged();
     void textColorChanged();
     void resizeGuideColorChanged();
+    void sortedColumnIndexChanged();
+    void sortAscendingChanged();
     
-    void columnSettingsClicked(int index);
+    void sortRequested(int columnIndex, bool ascending);
     void cellContextMenuRequested(int row, int column, double x, double y);
     void columnResized(int index, int width);
     void rowHeightResized(double height);
@@ -136,8 +146,9 @@ private:
     bool m_hoveredHeaderRow = false;
     int m_hoveredResizeColumn = -1;
     int m_hoveredRowResizeHandle = kRowResizeHandleNone;
-    QSvgRenderer* m_gearIcon = nullptr;
     QSvgRenderer* m_primaryKeyIcon = nullptr;
+    int m_sortedColumnIndex = -1;
+    bool m_sortAscending = true;
 
     // Resize Interaction
     int m_resizingColumn = -1;

@@ -14,11 +14,102 @@ Item {
     property string errorMessage: ""
     property string requestTag: "sql"
     property string queryText: "SELECT * FROM users LIMIT 10;"
+    property int sortColumnIndex: -1
+    property bool sortAscending: true
+    property bool sortActive: false
+    property var lastResult: ({})
     signal queryTextEdited(string text)
 
     function setQueryText(text) {
         if (root.queryText !== text) {
             root.queryText = text
+        }
+    }
+
+    function resetSortState() {
+        root.sortColumnIndex = -1
+        root.sortAscending = true
+        root.sortActive = false
+    }
+
+    function parseDateMs(value) {
+        if (value === null || value === undefined) return NaN
+        var parsed = Date.parse(String(value))
+        return isNaN(parsed) ? NaN : parsed
+    }
+
+    function compareCellValues(a, b, ascending) {
+        var aNull = (a === null || a === undefined)
+        var bNull = (b === null || b === undefined)
+        if (aNull || bNull) {
+            if (aNull && bNull) return 0
+            if (ascending) return aNull ? 1 : -1
+            return aNull ? -1 : 1
+        }
+
+        if (typeof a === "number" && typeof b === "number") {
+            return ascending ? (a - b) : (b - a)
+        }
+
+        if (typeof a === "boolean" && typeof b === "boolean") {
+            if (a === b) return 0
+            var boolCmp = a ? 1 : -1
+            return ascending ? boolCmp : -boolCmp
+        }
+
+        var aDate = parseDateMs(a)
+        var bDate = parseDateMs(b)
+        if (!isNaN(aDate) && !isNaN(bDate)) {
+            return ascending ? (aDate - bDate) : (bDate - aDate)
+        }
+
+        var aText = String(a).toLocaleLowerCase()
+        var bText = String(b).toLocaleLowerCase()
+        var textCmp = aText.localeCompare(bText)
+        return ascending ? textCmp : -textCmp
+    }
+
+    function sortLocalResult(columnIndex, ascending) {
+        if (!root.lastResult || !root.lastResult.columns || columnIndex < 0) {
+            return null
+        }
+
+        var rows = root.lastResult.rows ? root.lastResult.rows.slice(0) : []
+        var nulls = root.lastResult.nulls ? root.lastResult.nulls.slice(0) : []
+        var zipped = []
+        for (var i = 0; i < rows.length; i++) {
+            zipped.push({
+                row: rows[i],
+                nullRow: i < nulls.length ? nulls[i] : []
+            })
+        }
+
+        zipped.sort(function(left, right) {
+            var leftRow = left.row || []
+            var rightRow = right.row || []
+            var leftNullRow = left.nullRow || []
+            var rightNullRow = right.nullRow || []
+            var leftVal = columnIndex < leftRow.length ? leftRow[columnIndex] : null
+            var rightVal = columnIndex < rightRow.length ? rightRow[columnIndex] : null
+            var leftIsNull = (columnIndex < leftNullRow.length && leftNullRow[columnIndex] === true) || leftVal === null || leftVal === undefined
+            var rightIsNull = (columnIndex < rightNullRow.length && rightNullRow[columnIndex] === true) || rightVal === null || rightVal === undefined
+            return compareCellValues(leftIsNull ? null : leftVal, rightIsNull ? null : rightVal, ascending)
+        })
+
+        var sortedRows = []
+        var sortedNulls = []
+        for (var j = 0; j < zipped.length; j++) {
+            sortedRows.push(zipped[j].row)
+            sortedNulls.push(zipped[j].nullRow)
+        }
+
+        return {
+            "columns": root.lastResult.columns,
+            "rows": sortedRows,
+            "nulls": sortedNulls,
+            "executionTime": root.lastResult.executionTime,
+            "warning": root.lastResult.warning,
+            "hasMore": root.lastResult.hasMore
         }
     }
     
@@ -136,12 +227,25 @@ Item {
                     DataGrid {
                         anchors.fill: parent
                         engine: gridEngine
+                        emptyStateSuppressed: root.running || root.errorMessage.length > 0
+                        emptyStateTitle: "No results returned"
+                        emptyStateDescription: "Run another query or adjust the current SQL to retrieve matching rows."
+                        sortedColumnIndex: root.sortActive ? root.sortColumnIndex : -1
+                        sortAscending: root.sortAscending
+                        onSortRequested: (columnIndex, ascending) => {
+                            var sorted = root.sortLocalResult(columnIndex, ascending)
+                            if (!sorted) return
+                            root.sortColumnIndex = columnIndex
+                            root.sortAscending = ascending
+                            root.sortActive = true
+                            gridEngine.loadFromVariant(sorted)
+                        }
                     }
 
                     Rectangle {
                         anchors.fill: parent
                         color: "transparent"
-                        visible: root.running || root.empty || root.errorMessage.length > 0
+                        visible: root.running || root.errorMessage.length > 0
 
                         Text {
                             anchors.centerIn: parent
@@ -191,6 +295,7 @@ Item {
     function runQuery() {
         var query = queryEditor.text;
         if (!query.trim()) return;
+        root.resetSortState()
         root.errorMessage = ""
         root.empty = false
         root.statusText = "Running..."
@@ -228,6 +333,8 @@ Item {
             if (tag !== root.requestTag) return;
             root.running = false
             root.errorMessage = ""
+            root.lastResult = result
+            root.resetSortState()
             if (result && result.rows && result.rows.length === 0) {
                 root.empty = true
             } else {
@@ -247,6 +354,8 @@ Item {
             if (tag !== root.requestTag && root.requestTag.length > 0) return;
             root.running = false
             root.empty = false
+            root.lastResult = ({})
+            root.resetSortState()
             root.errorMessage = error
             root.statusText = "Error"
         }
@@ -254,6 +363,8 @@ Item {
             if (tag !== root.requestTag && root.requestTag.length > 0) return;
             root.running = false
             root.empty = false
+            root.lastResult = ({})
+            root.resetSortState()
             root.errorMessage = "Query cancelada."
             root.statusText = "Canceled"
         }

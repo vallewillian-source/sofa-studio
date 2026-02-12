@@ -5,6 +5,7 @@
 #include <QFontMetrics>
 #include <QHoverEvent>
 #include <QMouseEvent>
+#include <QPainterPath>
 #include <QPixmap>
 
 namespace Sofa::DataGrid {
@@ -25,7 +26,6 @@ DataGridView::DataGridView(QQuickItem* parent)
     // Transparent background to let QML Theme.background show through
     setFillColor(Qt::transparent);
 
-    m_gearIcon = new QSvgRenderer(QString(":/qt/qml/sofa/ui/assets/gear-solid-full.svg"), this);
     m_primaryKeyIcon = new QSvgRenderer(QString(":/qt/qml/sofa/ui/assets/key-solid-full.svg"), this);
 }
 
@@ -484,27 +484,14 @@ void DataGridView::mousePressEvent(QMouseEvent* event)
     if (y < m_rowHeight) {
         if (x < m_gutterWidth) return;
 
-        const double absoluteX = (x - m_gutterWidth) + m_contentX;
-        double currentX = 0;
-        const int cols = m_engine->columnCount();
-        for (int c = 0; c < cols; ++c) {
-            const auto colInfo = m_engine->getColumn(c);
-            const double colW = std::max(1, colInfo.displayWidth);
-
-            if (absoluteX >= currentX && absoluteX < currentX + colW) {
-                // Check if clicked on Gear Icon
-                if (c == m_hoveredHeaderColumn) {
-                    const int iconSize = 14;
-                    const int padding = 6;
-                    const double iconLogicalX = currentX + colW - iconSize - padding;
-                    if (absoluteX >= iconLogicalX && absoluteX <= iconLogicalX + iconSize) {
-                        emit columnSettingsClicked(c);
-                        return;
-                    }
-                }
-                break;
-            }
-            currentX += colW;
+        const int col = columnAtPosition(x);
+        if (col != -1) {
+            const bool nextAscending = (m_sortedColumnIndex == col) ? !m_sortAscending : true;
+            setSortedColumnIndex(col);
+            setSortAscending(nextAscending);
+            emit sortRequested(col, nextAscending);
+            event->accept();
+            return;
         }
         return;
     }
@@ -674,6 +661,9 @@ void DataGridView::setEngine(DataGridEngine* engine)
 
 void DataGridView::onEngineUpdated()
 {
+    if (!m_engine || m_sortedColumnIndex >= m_engine->columnCount()) {
+        setSortedColumnIndex(-1);
+    }
     syncRowOverridesWithEngine();
     clampScrollOffsets();
     emit contentSizeChanged();
@@ -777,6 +767,27 @@ void DataGridView::setResizeGuideColor(const QColor& c)
         emit resizeGuideColorChanged();
         update();
     }
+}
+
+void DataGridView::setSortedColumnIndex(int index)
+{
+    const int normalizedIndex = index < 0 ? -1 : index;
+    if (m_sortedColumnIndex == normalizedIndex) {
+        return;
+    }
+    m_sortedColumnIndex = normalizedIndex;
+    emit sortedColumnIndexChanged();
+    update();
+}
+
+void DataGridView::setSortAscending(bool ascending)
+{
+    if (m_sortAscending == ascending) {
+        return;
+    }
+    m_sortAscending = ascending;
+    emit sortAscendingChanged();
+    update();
 }
 
 double DataGridView::totalHeight() const
@@ -916,11 +927,6 @@ void DataGridView::paint(QPainter* painter)
             painter->setPen(m_lineColor);
             painter->drawRect(cellRect);
 
-            painter->setPen(m_textColor);
-            QFont headerFont = font;
-            headerFont.setBold(true);
-            painter->setFont(headerFont);
-
             QRectF textRect = cellRect.adjusted(8, 0, -5, 0);
             if (col.isPrimaryKey && m_primaryKeyIcon && m_primaryKeyIcon->isValid()) {
                 const int pkIconSize = 11;
@@ -928,7 +934,7 @@ void DataGridView::paint(QPainter* painter)
                 const int pkGap = 4;
                 if (colW > pkIconSize + (pkPaddingLeft + pkGap + 10)) {
                     const double iconX = cellRect.left() + pkPaddingLeft;
-                    const double iconY = (m_rowHeight - pkIconSize) / 2.0;
+                    const double iconY = 4.0;
                     QRectF pkIconRect(iconX, iconY, pkIconSize, pkIconSize);
 
                     QPixmap iconPixmap(pkIconSize, pkIconSize);
@@ -947,22 +953,87 @@ void DataGridView::paint(QPainter* painter)
                 }
             }
 
-            if (c == m_hoveredHeaderColumn) {
-                const int iconSize = 14;
-                const int padding = 6;
-                const double iconX = cellRect.right() - iconSize - padding;
-                const double iconY = (m_rowHeight - iconSize) / 2.0;
-
-                if (colW > iconSize + padding * 3) {
-                    QRectF iconRect(iconX, iconY, iconSize, iconSize);
-                    if (m_gearIcon && m_gearIcon->isValid()) {
-                        m_gearIcon->render(painter, iconRect);
-                    }
-                    textRect.setRight(iconX - padding);
+            const bool isSortedColumn = m_sortedColumnIndex == c;
+            const bool isHoveredHeader = m_hoveredHeaderRow && m_hoveredHeaderColumn == c;
+            const bool showSortIndicator = isSortedColumn || isHoveredHeader;
+            const bool ascendingForColumn = isSortedColumn ? m_sortAscending : true;
+            QRectF sortRect;
+            bool hasSortRect = false;
+            if (showSortIndicator) {
+                const int arrowSize = 8;
+                const int arrowPaddingRight = 8;
+                const int arrowGap = 6;
+                if (colW > arrowSize + arrowPaddingRight + arrowGap + 20) {
+                    const double arrowX = cellRect.right() - arrowPaddingRight - arrowSize;
+                    const double arrowY = (m_rowHeight - arrowSize) / 2.0;
+                    sortRect = QRectF(arrowX, arrowY, arrowSize, arrowSize);
+                    textRect.setRight(sortRect.left() - arrowGap);
+                    hasSortRect = true;
                 }
             }
 
-            painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, col.name);
+            QFont headerNameFont = font;
+            headerNameFont.setBold(true);
+            headerNameFont.setPixelSize(12);
+            painter->setFont(headerNameFont);
+            painter->setPen(m_textColor);
+
+            QRectF nameRect = textRect;
+            nameRect.setTop(cellRect.top() + 2);
+            nameRect.setBottom(cellRect.top() + (m_rowHeight / 2.0) + 2);
+
+            QFontMetrics nameMetrics(headerNameFont);
+            const QString displayName = nameMetrics.elidedText(col.name, Qt::ElideRight, std::max(1, static_cast<int>(nameRect.width())));
+            painter->drawText(nameRect, Qt::AlignLeft | Qt::AlignVCenter, displayName);
+
+            QFont typeFont = font;
+            typeFont.setBold(false);
+            typeFont.setPixelSize(9);
+            painter->setFont(typeFont);
+
+            QColor typeColor = m_textColor;
+            typeColor.setAlphaF(0.55);
+            painter->setPen(typeColor);
+
+            QRectF typeRect = textRect;
+            typeRect.setTop(cellRect.top() + (m_rowHeight / 2.0) - 1);
+            typeRect.setBottom(cellRect.bottom() - 2);
+
+            QString typeText = col.rawType.trimmed();
+            if (typeText.isEmpty()) {
+                typeText = "unknown";
+            }
+
+            QFontMetrics typeMetrics(typeFont);
+            const QString displayType = typeMetrics.elidedText(typeText, Qt::ElideRight, std::max(1, static_cast<int>(typeRect.width())));
+            painter->drawText(typeRect, Qt::AlignLeft | Qt::AlignVCenter, displayType);
+
+            if (hasSortRect) {
+                qreal arrowOpacity = 0.45;
+                if (isSortedColumn && isHoveredHeader) {
+                    arrowOpacity = 1.0;
+                } else if (isSortedColumn) {
+                    arrowOpacity = 0.9;
+                }
+
+                QColor arrowColor = m_resizeGuideColor;
+                arrowColor.setAlphaF(arrowOpacity);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(arrowColor);
+
+                QPainterPath arrowPath;
+                if (ascendingForColumn) {
+                    arrowPath.moveTo(sortRect.center().x(), sortRect.top());
+                    arrowPath.lineTo(sortRect.right(), sortRect.bottom());
+                    arrowPath.lineTo(sortRect.left(), sortRect.bottom());
+                } else {
+                    arrowPath.moveTo(sortRect.left(), sortRect.top());
+                    arrowPath.lineTo(sortRect.right(), sortRect.top());
+                    arrowPath.lineTo(sortRect.center().x(), sortRect.bottom());
+                }
+                arrowPath.closeSubpath();
+                painter->drawPath(arrowPath);
+            }
         }
         currentX += colW;
     }
@@ -993,7 +1064,7 @@ void DataGridView::paint(QPainter* painter)
     // Resize guides
     painter->save();
     QColor guideColor = m_resizeGuideColor;
-    guideColor.setAlphaF(0.8);
+    guideColor.setAlphaF(0.2);
     painter->setPen(QPen(guideColor, 1));
 
     int guideColumn = -1;

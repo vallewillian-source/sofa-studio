@@ -534,8 +534,15 @@ ApplicationWindow {
             property int pageIndex: 0
             property bool hasMore: false
             property bool pendingLoad: false
+            property bool pendingLoadUseDelayed: false
             property string insertRequestTag: ""
             property bool insertRunning: false
+            property string sortColumnName: ""
+            property bool sortAscending: true
+            property bool sortActive: false
+            property var lastDatasetResult: ({})
+            property bool requestInFlight: false
+            property bool delayedLoadingForCurrentRequest: false
             
             // Helper to get active connection color
             function getActiveConnectionColor() {
@@ -563,6 +570,127 @@ ApplicationWindow {
                     cols.push(gridEngine.getColumnName(i))
                 }
                 return cols
+            }
+
+            function currentSortColumnIndex() {
+                if (!sortActive || !sortColumnName || !gridEngine) return -1
+                var count = gridEngine.columnCount
+                for (var i = 0; i < count; i++) {
+                    if (gridEngine.getColumnName(i) === sortColumnName) {
+                        return i
+                    }
+                }
+                return -1
+            }
+
+            function resetSortState() {
+                sortColumnName = ""
+                sortAscending = true
+                sortActive = false
+            }
+
+            function parseDateMs(value) {
+                if (value === null || value === undefined) return NaN
+                var parsed = Date.parse(String(value))
+                return isNaN(parsed) ? NaN : parsed
+            }
+
+            function compareCellValues(a, b, ascending) {
+                var aNull = (a === null || a === undefined)
+                var bNull = (b === null || b === undefined)
+                if (aNull || bNull) {
+                    if (aNull && bNull) return 0
+                    if (ascending) return aNull ? 1 : -1
+                    return aNull ? -1 : 1
+                }
+
+                if (typeof a === "number" && typeof b === "number") {
+                    return ascending ? (a - b) : (b - a)
+                }
+
+                if (typeof a === "boolean" && typeof b === "boolean") {
+                    if (a === b) return 0
+                    var boolCmp = a ? 1 : -1
+                    return ascending ? boolCmp : -boolCmp
+                }
+
+                var aDate = parseDateMs(a)
+                var bDate = parseDateMs(b)
+                if (!isNaN(aDate) && !isNaN(bDate)) {
+                    return ascending ? (aDate - bDate) : (bDate - aDate)
+                }
+
+                var aText = String(a).toLocaleLowerCase()
+                var bText = String(b).toLocaleLowerCase()
+                var textCmp = aText.localeCompare(bText)
+                return ascending ? textCmp : -textCmp
+            }
+
+            function sortDatasetLocally(dataset, columnName, ascending) {
+                if (!dataset || !dataset.columns || !dataset.rows || !columnName) return null
+
+                var sortIndex = -1
+                for (var i = 0; i < dataset.columns.length; i++) {
+                    if ((dataset.columns[i].name || "") === columnName) {
+                        sortIndex = i
+                        break
+                    }
+                }
+                if (sortIndex < 0) return null
+
+                var rows = dataset.rows ? dataset.rows.slice(0) : []
+                var nulls = dataset.nulls ? dataset.nulls.slice(0) : []
+                var zipped = []
+                for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+                    zipped.push({
+                        row: rows[rowIndex],
+                        nullRow: rowIndex < nulls.length ? nulls[rowIndex] : []
+                    })
+                }
+
+                zipped.sort(function(left, right) {
+                    var leftRow = left.row || []
+                    var rightRow = right.row || []
+                    var leftNullRow = left.nullRow || []
+                    var rightNullRow = right.nullRow || []
+                    var leftVal = sortIndex < leftRow.length ? leftRow[sortIndex] : null
+                    var rightVal = sortIndex < rightRow.length ? rightRow[sortIndex] : null
+                    var leftIsNull = (sortIndex < leftNullRow.length && leftNullRow[sortIndex] === true) || leftVal === null || leftVal === undefined
+                    var rightIsNull = (sortIndex < rightNullRow.length && rightNullRow[sortIndex] === true) || rightVal === null || rightVal === undefined
+                    return compareCellValues(leftIsNull ? null : leftVal, rightIsNull ? null : rightVal, ascending)
+                })
+
+                var sortedRows = []
+                var sortedNulls = []
+                for (var sortedIndex = 0; sortedIndex < zipped.length; sortedIndex++) {
+                    sortedRows.push(zipped[sortedIndex].row)
+                    sortedNulls.push(zipped[sortedIndex].nullRow)
+                }
+
+                return {
+                    "columns": dataset.columns,
+                    "rows": sortedRows,
+                    "nulls": sortedNulls,
+                    "hasMore": dataset.hasMore,
+                    "executionTime": dataset.executionTime,
+                    "warning": dataset.warning
+                }
+            }
+
+            function applySortToCurrentDataset() {
+                if (!sortActive || !sortColumnName || !lastDatasetResult || !lastDatasetResult.columns) {
+                    if (lastDatasetResult && lastDatasetResult.columns) {
+                        gridEngine.loadFromVariant(lastDatasetResult)
+                    }
+                    return
+                }
+
+                var sorted = sortDatasetLocally(lastDatasetResult, sortColumnName, sortAscending)
+                if (sorted) {
+                    gridEngine.loadFromVariant(sorted)
+                } else {
+                    gridEngine.loadFromVariant(lastDatasetResult)
+                }
             }
 
             function openAddRowModal() {
@@ -615,7 +743,18 @@ ApplicationWindow {
                 repeat: false
                 onTriggered: {
                     if (tableRoot.pendingLoad) {
-                        tableRoot.loadData()
+                        tableRoot.loadData(tableRoot.pendingLoadUseDelayed)
+                    }
+                }
+            }
+
+            Timer {
+                id: loadingVisualDelayTimer
+                interval: 150
+                repeat: false
+                onTriggered: {
+                    if (tableRoot.requestInFlight && tableRoot.delayedLoadingForCurrentRequest) {
+                        tableRoot.loading = true
                     }
                 }
             }
@@ -781,15 +920,27 @@ ApplicationWindow {
                 engine: gridEngine
                 schemaName: tableRoot.schema
                 tableName: tableRoot.tableName
+                emptyStateTitle: "This table has no rows yet"
+                emptyStateDescription: "Use Add Row to insert the first record, or adjust your pagination to inspect other pages."
+                sortedColumnIndex: tableRoot.currentSortColumnIndex()
+                sortAscending: tableRoot.sortAscending
                 visible: !tableRoot.loading && tableRoot.errorMessage.length === 0
                 currentPage: tableRoot.pageIndex + 1
                 pageSize: tableRoot.pageSize
-                canPrevious: tableRoot.pageIndex > 0 && !tableRoot.loading
-                canNext: tableRoot.hasMore && !tableRoot.loading
+                canPrevious: tableRoot.pageIndex > 0 && !tableRoot.requestInFlight
+                canNext: tableRoot.hasMore && !tableRoot.requestInFlight
                 addRowAccentColor: tableRoot.getActiveConnectionColor()
                 onPreviousClicked: tableRoot.previousPage()
                 onNextClicked: tableRoot.nextPage()
                 onAddRowClicked: tableRoot.openAddRowModal()
+                onSortRequested: (columnIndex, ascending) => {
+                    var columnName = gridEngine.getColumnName(columnIndex)
+                    if (!columnName || columnName.length === 0) return
+                    tableRoot.sortColumnName = columnName
+                    tableRoot.sortAscending = ascending
+                    tableRoot.sortActive = true
+                    tableRoot.applySortToCurrentDataset()
+                }
             }
 
             RowEditorModal {
@@ -885,7 +1036,8 @@ ApplicationWindow {
             }
 
 
-            function loadData() {
+            function loadData(useDelayedLoading) {
+                if (useDelayedLoading === undefined) useDelayedLoading = false
                 tableRoot.errorMessage = ""
                 tableRoot.empty = false
                 tableRoot.loading = false
@@ -893,7 +1045,10 @@ ApplicationWindow {
                 if (tableName) {
                     if (App.queryRunning) {
                         tableRoot.pendingLoad = true
-                        tableRoot.loading = true
+                        tableRoot.pendingLoadUseDelayed = useDelayedLoading
+                        tableRoot.requestInFlight = true
+                        tableRoot.delayedLoadingForCurrentRequest = useDelayedLoading
+                        tableRoot.loading = !useDelayedLoading
                         if (!loadRetryTimer.running) {
                             loadRetryTimer.start()
                         }
@@ -901,21 +1056,64 @@ ApplicationWindow {
                     }
 
                     tableRoot.pendingLoad = false
+                    tableRoot.pendingLoadUseDelayed = false
                     console.log("\u001b[34m📥 Buscando dados\u001b[0m", schema + "." + tableName)
                     tableRoot.requestTag = "table:" + schema + "." + tableName + ":page:" + tableRoot.pageIndex
-                    tableRoot.loading = true
+                    tableRoot.requestInFlight = true
+                    tableRoot.delayedLoadingForCurrentRequest = useDelayedLoading
+                    tableRoot.loading = !useDelayedLoading
+                    if (useDelayedLoading) {
+                        loadingVisualDelayTimer.restart()
+                    } else {
+                        loadingVisualDelayTimer.stop()
+                    }
                     var offset = tableRoot.pageIndex * tableRoot.pageSize
-                    var ok = App.getDatasetAsync(schema, tableName, tableRoot.pageSize, offset, tableRoot.requestTag)
+                    var ok = App.getDatasetAsync(
+                        schema,
+                        tableName,
+                        tableRoot.pageSize,
+                        offset,
+                        "",
+                        true,
+                        tableRoot.requestTag
+                    )
                     if (!ok) {
+                        tableRoot.requestInFlight = false
+                        tableRoot.delayedLoadingForCurrentRequest = false
+                        loadingVisualDelayTimer.stop()
                         tableRoot.loading = false
                         tableRoot.errorMessage = App.lastError
+                        tableRoot.lastDatasetResult = ({})
                         gridEngine.clear()
                     }
                 } else {
                     tableRoot.pendingLoad = false
+                    tableRoot.pendingLoadUseDelayed = false
+                    tableRoot.requestInFlight = false
+                    tableRoot.delayedLoadingForCurrentRequest = false
+                    loadingVisualDelayTimer.stop()
                     tableRoot.errorMessage = "Tabela inválida."
+                    tableRoot.lastDatasetResult = ({})
                     gridEngine.clear()
                 }
+            }
+
+            onSchemaChanged: {
+                tableRoot.pageIndex = 0
+                tableRoot.resetSortState()
+                tableRoot.lastDatasetResult = ({})
+                tableRoot.requestInFlight = false
+                tableRoot.delayedLoadingForCurrentRequest = false
+                loadingVisualDelayTimer.stop()
+            }
+
+            onTableNameChanged: {
+                tableRoot.pageIndex = 0
+                tableRoot.resetSortState()
+                tableRoot.lastDatasetResult = ({})
+                tableRoot.requestInFlight = false
+                tableRoot.delayedLoadingForCurrentRequest = false
+                loadingVisualDelayTimer.stop()
             }
 
             function runCount() {
@@ -924,16 +1122,16 @@ ApplicationWindow {
             }
 
             function nextPage() {
-                if (!tableRoot.loading && tableRoot.hasMore) {
+                if (!tableRoot.requestInFlight && tableRoot.hasMore) {
                     tableRoot.pageIndex += 1
-                    tableRoot.loadData()
+                    tableRoot.loadData(true)
                 }
             }
 
             function previousPage() {
-                if (!tableRoot.loading && tableRoot.pageIndex > 0) {
+                if (!tableRoot.requestInFlight && tableRoot.pageIndex > 0) {
                     tableRoot.pageIndex -= 1
-                    tableRoot.loadData()
+                    tableRoot.loadData(true)
                 }
             }
 
@@ -943,7 +1141,7 @@ ApplicationWindow {
                     event.accepted = true;
                 }
                 if (event.key === Qt.Key_Escape) {
-                    if (tableRoot.loading) {
+                    if (tableRoot.requestInFlight) {
                         App.cancelActiveQuery();
                         event.accepted = true;
                     }
@@ -954,11 +1152,16 @@ ApplicationWindow {
                 target: App
                 function onDatasetStarted(tag) {
                     if (tag !== tableRoot.requestTag) return;
-                    tableRoot.loading = true
                     tableRoot.errorMessage = ""
+                    if (!tableRoot.delayedLoadingForCurrentRequest) {
+                        tableRoot.loading = true
+                    }
                 }
                 function onDatasetFinished(tag, result) {
                     if (tag !== tableRoot.requestTag) return;
+                    tableRoot.requestInFlight = false
+                    tableRoot.delayedLoadingForCurrentRequest = false
+                    loadingVisualDelayTimer.stop()
                     tableRoot.loading = false
                     tableRoot.errorMessage = ""
                     console.log("\u001b[32m✅ Dataset recebido\u001b[0m", "colunas=" + (result.columns ? result.columns.length : 0) + " linhas=" + (result.rows ? result.rows.length : 0))
@@ -971,22 +1174,31 @@ ApplicationWindow {
                     }
                     tableRoot.empty = result.rows && result.rows.length === 0
 
-                    gridEngine.loadFromVariant(result)
+                    tableRoot.lastDatasetResult = result
+                    tableRoot.applySortToCurrentDataset()
                 }
                 function onDatasetError(tag, error) {
                     if (tag !== tableRoot.requestTag && tableRoot.requestTag.length > 0) return;
+                    tableRoot.requestInFlight = false
+                    tableRoot.delayedLoadingForCurrentRequest = false
+                    loadingVisualDelayTimer.stop()
                     tableRoot.loading = false
                     tableRoot.empty = false
                     tableRoot.errorMessage = error
                     tableRoot.hasMore = false
+                    tableRoot.lastDatasetResult = ({})
                     gridEngine.clear()
                 }
                 function onDatasetCanceled(tag) {
                     if (tag !== tableRoot.requestTag && tableRoot.requestTag.length > 0) return;
+                    tableRoot.requestInFlight = false
+                    tableRoot.delayedLoadingForCurrentRequest = false
+                    loadingVisualDelayTimer.stop()
                     tableRoot.loading = false
                     tableRoot.empty = false
                     tableRoot.errorMessage = "Query cancelada."
                     tableRoot.hasMore = false
+                    tableRoot.lastDatasetResult = ({})
                     gridEngine.clear()
                 }
 

@@ -491,7 +491,7 @@ QVariantList AppContext::getQueryHistory(int connectionId)
     return list;
 }
 
-QVariantMap AppContext::getDataset(const QString& schema, const QString& table, int limit, int offset)
+QVariantMap AppContext::getDataset(const QString& schema, const QString& table, int limit, int offset, const QString& sortColumn, bool sortAscending)
 {
     QVariantMap result;
     if (!m_currentConnection || !m_currentConnection->isOpen()) {
@@ -510,6 +510,9 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
     DatasetRequest request;
     request.limit = limit;
     request.offset = offset;
+    request.hasSort = !sortColumn.isEmpty();
+    request.sortColumn = sortColumn;
+    request.sortAscending = sortAscending;
     
     auto queryProvider = m_currentConnection->query();
     if (!queryProvider) {
@@ -590,7 +593,7 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
     return result;
 }
 
-bool AppContext::getDatasetAsync(const QString& schema, const QString& table, int limit, int offset, const QString& requestTag)
+bool AppContext::getDatasetAsync(const QString& schema, const QString& table, int limit, int offset, const QString& sortColumn, bool sortAscending, const QString& requestTag)
 {
     if (!m_currentConnection || !m_currentConnection->isOpen()) {
         setLastError("Connection is not open.");
@@ -623,6 +626,8 @@ bool AppContext::getDatasetAsync(const QString& schema, const QString& table, in
                               Q_ARG(QString, table),
                               Q_ARG(int, limit),
                               Q_ARG(int, offset),
+                              Q_ARG(QString, sortColumn),
+                              Q_ARG(bool, sortAscending),
                               Q_ARG(QString, requestTag));
     return true;
 }

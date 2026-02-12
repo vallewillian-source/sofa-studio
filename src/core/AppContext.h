@@ -58,9 +58,9 @@ public:
     // Query API
     Q_INVOKABLE QVariantMap runQuery(const QString& queryText);
     Q_INVOKABLE QVariantList getQueryHistory(int connectionId);
-    Q_INVOKABLE QVariantMap getDataset(const QString& schema, const QString& table, int limit = 100, int offset = 0);
+    Q_INVOKABLE QVariantMap getDataset(const QString& schema, const QString& table, int limit = 100, int offset = 0, const QString& sortColumn = QString(), bool sortAscending = true);
     Q_INVOKABLE bool runQueryAsync(const QString& queryText, const QString& requestTag = "sql");
-    Q_INVOKABLE bool getDatasetAsync(const QString& schema, const QString& table, int limit = 100, int offset = 0, const QString& requestTag = "table");
+    Q_INVOKABLE bool getDatasetAsync(const QString& schema, const QString& table, int limit = 100, int offset = 0, const QString& sortColumn = QString(), bool sortAscending = true, const QString& requestTag = "table");
     Q_INVOKABLE void getCount(const QString& schema, const QString& table, const QString& requestTag);
     Q_INVOKABLE bool cancelActiveQuery();
     

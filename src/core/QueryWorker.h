@@ -15,7 +15,7 @@ public:
 
 public slots:
     void runSql(const QVariantMap& connectionInfo, const QString& queryText, const QString& requestTag);
-    void runDataset(const QVariantMap& connectionInfo, const QString& schema, const QString& table, int limit, int offset, const QString& requestTag);
+    void runDataset(const QVariantMap& connectionInfo, const QString& schema, const QString& table, int limit, int offset, const QString& sortColumn, bool sortAscending, const QString& requestTag);
     void runCount(const QVariantMap& connectionInfo, const QString& schema, const QString& table, const QString& requestTag);
 
 signals:

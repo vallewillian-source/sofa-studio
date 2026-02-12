@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import sofa.ui
 import sofa.datagrid 1.0
 
@@ -16,6 +17,12 @@ Rectangle {
     property bool canPrevious: false
     property bool canNext: false
     property color addRowAccentColor: Theme.accent
+    property bool emptyStateEnabled: true
+    property bool emptyStateSuppressed: false
+    property string emptyStateTitle: "No rows found"
+    property string emptyStateDescription: "This result set is empty. Try changing filters, pagination, or inserting new records."
+    property int sortedColumnIndex: -1
+    property bool sortAscending: true
     property string schemaName: ""
     property string tableName: ""
     property int contextRow: -1
@@ -25,6 +32,7 @@ Rectangle {
     signal addRowClicked()
     signal previousClicked()
     signal nextClicked()
+    signal sortRequested(int columnIndex, bool ascending)
     
     function showToast(message) {
         toastText = message
@@ -36,6 +44,12 @@ Rectangle {
         App.copyToClipboard(text)
         showToast("Copiado para a área de trabalho")
     }
+
+    readonly property bool showEmptyState: emptyStateEnabled
+                                         && !emptyStateSuppressed
+                                         && view.engine
+                                         && view.engine.columnCount > 0
+                                         && view.engine.rowCount === 0
 
     function maxScrollX() {
         return Math.max(0, view.totalWidth - view.width)
@@ -197,11 +211,19 @@ Rectangle {
 
                     return activeColor
                 }
+                sortedColumnIndex: root.sortedColumnIndex
+                sortAscending: root.sortAscending
                 
                 onCellContextMenuRequested: (row, col, x, y) => {
                     contextRow = row
                     contextCol = col
                     contextMenu.popup(view, x, y)
+                }
+
+                onSortRequested: (columnIndex, ascending) => {
+                    root.sortedColumnIndex = columnIndex
+                    root.sortAscending = ascending
+                    root.sortRequested(columnIndex, ascending)
                 }
 
                 onColumnResized: (index, width) => {
@@ -215,6 +237,66 @@ Rectangle {
 
                 onRowResized: (row, height) => {
                     showToast("Linha " + (row + 1) + ": " + Math.round(height) + " px")
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                visible: root.showEmptyState
+                color: Theme.background
+                z: 8
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - 48, 520)
+                    spacing: 14
+
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        width: 76
+                        height: 76
+                        radius: 18
+                        color: Theme.tintColor(Theme.background, root.addRowAccentColor, 0.10)
+                        border.color: Theme.tintColor(Theme.border, root.addRowAccentColor, 0.45)
+                        border.width: 1
+
+                        Image {
+                            id: emptyStateIcon
+                            anchors.centerIn: parent
+                            width: 30
+                            height: 30
+                            source: "qrc:/qt/qml/sofa/ui/assets/table-cells-large-solid-full.svg"
+                            sourceSize.width: 30
+                            sourceSize.height: 30
+                            visible: false
+                        }
+
+                        ColorOverlay {
+                            anchors.fill: emptyStateIcon
+                            source: emptyStateIcon
+                            color: root.addRowAccentColor
+                            opacity: 0.9
+                        }
+                    }
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: root.emptyStateTitle
+                        color: Theme.textPrimary
+                        font.pixelSize: 18
+                        font.bold: true
+                    }
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        text: root.emptyStateDescription
+                        color: Theme.textSecondary
+                        font.pixelSize: 13
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.25
+                    }
                 }
             }
 
