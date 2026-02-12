@@ -1396,6 +1396,123 @@ ApplicationWindow {
         height: root.height - appHeader.height
         y: appHeader.height
         z: 200
+        property string filterMode: "simple"
+        property string simpleValue: ""
+        property string manualWhereText: ""
+        property int simpleSelectedFieldIndex: 0
+        property int simpleSelectedOperatorIndex: 0
+        readonly property var currentTabItem: (appTabs.currentIndex >= 0 && appTabs.currentIndex < tabModel.count)
+            ? tabModel.get(appTabs.currentIndex)
+            : null
+        readonly property string currentSchemaName: (currentTabItem && currentTabItem.schema && String(currentTabItem.schema).length > 0)
+            ? String(currentTabItem.schema)
+            : "public"
+        readonly property string currentTableName: (currentTabItem && currentTabItem.tableName && String(currentTabItem.tableName).length > 0)
+            ? String(currentTabItem.tableName)
+            : "table_name"
+        readonly property color accentColor: {
+            var currentId = App.activeConnectionId
+            if (currentId === -1) return Theme.accent
+            var conns = App.connections
+            for (var i = 0; i < conns.length; i++) {
+                if (conns[i].id === currentId) {
+                    return conns[i].color && conns[i].color.length > 0 ? conns[i].color : Theme.accent
+                }
+            }
+            return Theme.accent
+        }
+
+        function quoteIdentifier(identifier) {
+            var raw = String(identifier === undefined || identifier === null ? "" : identifier)
+            return "\"" + raw.replace(/"/g, "\"\"") + "\""
+        }
+
+        function quoteSqlStringLiteral(value) {
+            return "'" + String(value).replace(/'/g, "''") + "'"
+        }
+
+        function currentSimpleFieldSqlName() {
+            if (simpleSelectedFieldIndex < 0 || simpleSelectedFieldIndex >= simpleFieldModel.count) {
+                return "column_name"
+            }
+            return String(simpleFieldModel.get(simpleSelectedFieldIndex).sqlName || "column_name")
+        }
+
+        function currentSimpleOperatorSql() {
+            if (simpleSelectedOperatorIndex < 0 || simpleSelectedOperatorIndex >= simpleOperatorModel.count) {
+                return "="
+            }
+            return String(simpleOperatorModel.get(simpleSelectedOperatorIndex).sql || "=")
+        }
+
+        function currentSimpleOperatorNeedsValue() {
+            if (simpleSelectedOperatorIndex < 0 || simpleSelectedOperatorIndex >= simpleOperatorModel.count) {
+                return true
+            }
+            return simpleOperatorModel.get(simpleSelectedOperatorIndex).needsValue === true
+        }
+
+        function currentSimpleOperatorUsesPattern() {
+            if (simpleSelectedOperatorIndex < 0 || simpleSelectedOperatorIndex >= simpleOperatorModel.count) {
+                return false
+            }
+            return simpleOperatorModel.get(simpleSelectedOperatorIndex).usesPattern === true
+        }
+
+        function buildSimpleWhereClause() {
+            var fieldSql = quoteIdentifier(currentSimpleFieldSqlName())
+            var opSql = currentSimpleOperatorSql()
+            if (!currentSimpleOperatorNeedsValue()) {
+                return fieldSql + " " + opSql
+            }
+            var valueText = String(simpleValue || "")
+            if (currentSimpleOperatorUsesPattern()) {
+                valueText = "%" + valueText + "%"
+            }
+            return fieldSql + " " + opSql + " " + quoteSqlStringLiteral(valueText)
+        }
+
+        function buildPreviewFilterQuery() {
+            var query = "SELECT *\nFROM " + quoteIdentifier(currentSchemaName) + "." + quoteIdentifier(currentTableName)
+            var whereClause = ""
+            if (filterMode === "manual") {
+                whereClause = String(manualWhereText || "").trim()
+            } else {
+                whereClause = buildSimpleWhereClause()
+            }
+            if (whereClause.length > 0) {
+                query += "\nWHERE " + whereClause
+            }
+            return query + ";"
+        }
+
+        function resetDraftFilters() {
+            filterMode = "simple"
+            simpleSelectedFieldIndex = 0
+            simpleSelectedOperatorIndex = 0
+            simpleValue = ""
+            manualWhereText = ""
+        }
+
+        ListModel {
+            id: simpleFieldModel
+            ListElement { label: "id"; sqlName: "id" }
+            ListElement { label: "name"; sqlName: "name" }
+            ListElement { label: "status"; sqlName: "status" }
+            ListElement { label: "created_at"; sqlName: "created_at" }
+        }
+
+        ListModel {
+            id: simpleOperatorModel
+            ListElement { label: "equals"; sql: "="; needsValue: true; usesPattern: false }
+            ListElement { label: "does not equal"; sql: "<>"; needsValue: true; usesPattern: false }
+            ListElement { label: "like"; sql: "LIKE"; needsValue: true; usesPattern: true }
+            ListElement { label: "not like"; sql: "NOT LIKE"; needsValue: true; usesPattern: true }
+            ListElement { label: "greater than"; sql: ">"; needsValue: true; usesPattern: false }
+            ListElement { label: "less than"; sql: "<"; needsValue: true; usesPattern: false }
+            ListElement { label: "is null"; sql: "IS NULL"; needsValue: false; usesPattern: false }
+            ListElement { label: "is not null"; sql: "IS NOT NULL"; needsValue: false; usesPattern: false }
+        }
 
         background: Rectangle {
             color: Theme.sidebarSurface
@@ -1411,17 +1528,6 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 56
                 color: Theme.surface
-                readonly property color accentColor: {
-                    var currentId = App.activeConnectionId
-                    if (currentId === -1) return Theme.accent
-                    var conns = App.connections
-                    for (var i = 0; i < conns.length; i++) {
-                        if (conns[i].id === currentId) {
-                            return conns[i].color && conns[i].color.length > 0 ? conns[i].color : Theme.accent
-                        }
-                    }
-                    return Theme.accent
-                }
                 function withAlpha(colorValue, alphaValue) {
                     var c = Qt.color(colorValue)
                     return Qt.rgba(c.r, c.g, c.b, alphaValue)
@@ -1432,7 +1538,7 @@ ApplicationWindow {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     height: 2
-                    color: parent.withAlpha(parent.accentColor, 0.65)
+                    color: parent.withAlpha(rightFiltersDrawer.accentColor, 0.65)
                 }
 
                 Rectangle {
@@ -1493,9 +1599,439 @@ ApplicationWindow {
                 }
             }
 
-            Item {
+            ScrollView {
+                id: filtersBodyScroll
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                clip: true
+                contentWidth: availableWidth
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+                Item {
+                    width: Math.max(filtersBodyScroll.availableWidth, 1)
+                    implicitHeight: filtersBody.implicitHeight + (Theme.spacingLarge * 2)
+                    height: Math.max(implicitHeight, filtersBodyScroll.availableHeight)
+
+                    ColumnLayout {
+                        id: filtersBody
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.leftMargin: Theme.spacingLarge
+                        anchors.rightMargin: Theme.spacingLarge
+                        anchors.topMargin: Theme.spacingLarge
+                        anchors.bottomMargin: Theme.spacingLarge
+                        spacing: Theme.spacingLarge
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: false
+                            Layout.preferredHeight: implicitHeight
+                            Layout.maximumHeight: implicitHeight
+                            spacing: Theme.spacingSmall
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Query preview"
+                                color: Theme.textPrimary
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+
+                            TextArea {
+                                id: filtersPreviewSql
+                                Layout.fillWidth: true
+                                readOnly: true
+                                selectByMouse: true
+                                wrapMode: TextEdit.WrapAnywhere
+                                leftPadding: 0
+                                rightPadding: 0
+                                topPadding: 0
+                                bottomPadding: 0
+                                text: rightFiltersDrawer.buildPreviewFilterQuery()
+                                color: Theme.textPrimary
+                                selectionColor: Theme.accent
+                                selectedTextColor: "#FFFFFF"
+                                background: Rectangle { color: "transparent" }
+                                font.pixelSize: 11
+                                font.family: Qt.platform.os === "osx" ? "Menlo" : "Monospace"
+                                implicitHeight: Math.max(44, contentHeight)
+                            }
+
+                            SqlSyntaxHighlighter {
+                                document: filtersPreviewSql.textDocument
+                                keywordColor: Theme.accentSecondary
+                                stringColor: Theme.tintColor(Theme.textPrimary, Theme.connectionAvatarColors[3], 0.55)
+                                numberColor: Theme.tintColor(Theme.textPrimary, Theme.connectionAvatarColors[8], 0.65)
+                                commentColor: Theme.textSecondary
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: false
+                            Layout.preferredHeight: implicitHeight
+                            Layout.maximumHeight: implicitHeight
+                            spacing: Theme.spacingSmall
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Filter mode"
+                                color: Theme.textPrimary
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 34
+                                radius: Theme.radius
+                                color: Theme.surface
+                                border.color: Theme.border
+                                border.width: 1
+
+                                RowLayout {
+                                    id: filterModeButtonsRow
+                                    anchors.fill: parent
+                                    anchors.margins: 3
+                                    spacing: 3
+
+                                    AppButton {
+                                        Layout.preferredWidth: (filterModeButtonsRow.width - filterModeButtonsRow.spacing) / 2
+                                        Layout.preferredHeight: 28
+                                        text: "Simple"
+                                        isPrimary: rightFiltersDrawer.filterMode === "simple"
+                                        isOutline: rightFiltersDrawer.filterMode !== "simple"
+                                        accentColor: rightFiltersDrawer.accentColor
+                                        font.pixelSize: 12
+                                        onClicked: rightFiltersDrawer.filterMode = "simple"
+                                    }
+
+                                    AppButton {
+                                        Layout.preferredWidth: (filterModeButtonsRow.width - filterModeButtonsRow.spacing) / 2
+                                        Layout.preferredHeight: 28
+                                        text: "Manual SQL"
+                                        isPrimary: rightFiltersDrawer.filterMode === "manual"
+                                        isOutline: rightFiltersDrawer.filterMode !== "manual"
+                                        accentColor: rightFiltersDrawer.accentColor
+                                        font.pixelSize: 12
+                                        onClicked: rightFiltersDrawer.filterMode = "manual"
+                                    }
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            visible: rightFiltersDrawer.filterMode === "simple"
+                            Layout.fillHeight: rightFiltersDrawer.filterMode === "simple"
+                            Layout.minimumHeight: visible ? implicitHeight : 0
+                            Layout.preferredHeight: visible ? implicitHeight : 0
+                            Layout.maximumHeight: visible ? Number.POSITIVE_INFINITY : 0
+                            spacing: Theme.spacingSmall
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Simple filter"
+                                color: Theme.textPrimary
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 10
+                                text: "Field"
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+
+                            ComboBox {
+                                id: simpleFieldCombo
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Theme.buttonHeight
+                                textRole: "label"
+                                valueRole: "sqlName"
+                                model: simpleFieldModel
+                                currentIndex: Math.max(0, Math.min(simpleFieldModel.count - 1, rightFiltersDrawer.simpleSelectedFieldIndex))
+                                onCurrentIndexChanged: {
+                                    if (currentIndex >= 0) {
+                                        rightFiltersDrawer.simpleSelectedFieldIndex = currentIndex
+                                    }
+                                }
+
+                                background: Rectangle {
+                                    implicitHeight: Theme.buttonHeight
+                                    color: Theme.surface
+                                    border.color: parent.activeFocus ? rightFiltersDrawer.accentColor : Theme.border
+                                    border.width: 1
+                                    radius: Theme.radius
+                                }
+
+                                contentItem: Text {
+                                    leftPadding: 10
+                                    rightPadding: 10
+                                    text: simpleFieldCombo.displayText
+                                    color: Theme.textPrimary
+                                    font.pixelSize: 13
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
+
+                                delegate: ItemDelegate {
+                                    required property string label
+                                    required property int index
+                                    width: simpleFieldCombo.width
+                                    height: 30
+                                    contentItem: Text {
+                                        text: label
+                                        color: Theme.textPrimary
+                                        font.pixelSize: 13
+                                        elide: Text.ElideRight
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        color: highlighted ? Theme.surfaceHighlight : Theme.surface
+                                    }
+                                    highlighted: simpleFieldCombo.highlightedIndex === index
+                                }
+
+                                popup: Popup {
+                                    y: simpleFieldCombo.height - 1
+                                    width: simpleFieldCombo.width
+                                    implicitHeight: Math.min(contentItem.implicitHeight, 220)
+                                    padding: 1
+
+                                    contentItem: ListView {
+                                        clip: true
+                                        implicitHeight: contentHeight
+                                        model: simpleFieldCombo.popup.visible ? simpleFieldCombo.delegateModel : null
+                                        currentIndex: simpleFieldCombo.highlightedIndex
+                                        ScrollIndicator.vertical: ScrollIndicator { }
+                                    }
+
+                                    background: Rectangle {
+                                        border.color: Theme.border
+                                        color: Theme.surface
+                                        radius: Theme.radius
+                                    }
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 10
+                                text: "Condition"
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+
+                            ComboBox {
+                                id: simpleOperatorCombo
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Theme.buttonHeight
+                                textRole: "label"
+                                valueRole: "sql"
+                                model: simpleOperatorModel
+                                currentIndex: Math.max(0, Math.min(simpleOperatorModel.count - 1, rightFiltersDrawer.simpleSelectedOperatorIndex))
+                                onCurrentIndexChanged: {
+                                    if (currentIndex >= 0) {
+                                        rightFiltersDrawer.simpleSelectedOperatorIndex = currentIndex
+                                    }
+                                }
+
+                                background: Rectangle {
+                                    implicitHeight: Theme.buttonHeight
+                                    color: Theme.surface
+                                    border.color: parent.activeFocus ? rightFiltersDrawer.accentColor : Theme.border
+                                    border.width: 1
+                                    radius: Theme.radius
+                                }
+
+                                contentItem: Text {
+                                    leftPadding: 10
+                                    rightPadding: 10
+                                    text: simpleOperatorCombo.displayText
+                                    color: Theme.textPrimary
+                                    font.pixelSize: 13
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
+
+                                delegate: ItemDelegate {
+                                    required property string label
+                                    required property int index
+                                    width: simpleOperatorCombo.width
+                                    height: 30
+                                    contentItem: Text {
+                                        text: label
+                                        color: Theme.textPrimary
+                                        font.pixelSize: 13
+                                        elide: Text.ElideRight
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        color: highlighted ? Theme.surfaceHighlight : Theme.surface
+                                    }
+                                    highlighted: simpleOperatorCombo.highlightedIndex === index
+                                }
+
+                                popup: Popup {
+                                    y: simpleOperatorCombo.height - 1
+                                    width: simpleOperatorCombo.width
+                                    implicitHeight: Math.min(contentItem.implicitHeight, 220)
+                                    padding: 1
+
+                                    contentItem: ListView {
+                                        clip: true
+                                        implicitHeight: contentHeight
+                                        model: simpleOperatorCombo.popup.visible ? simpleOperatorCombo.delegateModel : null
+                                        currentIndex: simpleOperatorCombo.highlightedIndex
+                                        ScrollIndicator.vertical: ScrollIndicator { }
+                                    }
+
+                                    background: Rectangle {
+                                        border.color: Theme.border
+                                        color: Theme.surface
+                                        radius: Theme.radius
+                                    }
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 10
+                                text: "Value"
+                                visible: rightFiltersDrawer.currentSimpleOperatorNeedsValue()
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+
+                            AppTextField {
+                                id: simpleValueInput
+                                Layout.fillWidth: true
+                                visible: rightFiltersDrawer.currentSimpleOperatorNeedsValue()
+                                accentColor: rightFiltersDrawer.accentColor
+                                placeholderText: "Type filter value"
+                                text: rightFiltersDrawer.simpleValue
+                                onTextChanged: {
+                                    if (rightFiltersDrawer.simpleValue !== text) {
+                                        rightFiltersDrawer.simpleValue = text
+                                    }
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                visible: rightFiltersDrawer.filterMode === "simple"
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: rightFiltersDrawer.filterMode === "manual"
+                            visible: rightFiltersDrawer.filterMode === "manual"
+                            Layout.minimumHeight: visible ? implicitHeight : 0
+                            Layout.preferredHeight: visible ? implicitHeight : 0
+                            Layout.maximumHeight: visible ? Number.POSITIVE_INFINITY : 0
+                            spacing: Theme.spacingSmall
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Manual WHERE clause"
+                                color: Theme.textPrimary
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "This text is injected directly after WHERE in the generated SELECT query."
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.minimumHeight: 180
+                                color: Theme.surface
+                                border.color: Theme.border
+                                border.width: 1
+                                radius: Theme.radius
+
+                                TextArea {
+                                    id: manualWhereEditor
+                                    anchors.fill: parent
+                                    anchors.margins: 8
+                                    font.family: Qt.platform.os === "osx" ? "Menlo" : "Monospace"
+                                    font.pixelSize: 12
+                                    color: Theme.textPrimary
+                                    selectionColor: rightFiltersDrawer.accentColor
+                                    selectedTextColor: "#FFFFFF"
+                                    selectByMouse: true
+                                    wrapMode: TextEdit.Wrap
+                                    background: Rectangle { color: "transparent" }
+                                    placeholderText: "status = 'active'"
+                                    text: rightFiltersDrawer.manualWhereText
+                                    onTextChanged: {
+                                        if (rightFiltersDrawer.manualWhereText !== text) {
+                                            rightFiltersDrawer.manualWhereText = text
+                                        }
+                                    }
+                                }
+
+                                SqlSyntaxHighlighter {
+                                    document: manualWhereEditor.textDocument
+                                    keywordColor: Theme.accentSecondary
+                                    stringColor: Theme.tintColor(Theme.textPrimary, Theme.connectionAvatarColors[3], 0.55)
+                                    numberColor: Theme.tintColor(Theme.textPrimary, Theme.connectionAvatarColors[8], 0.65)
+                                    commentColor: Theme.textSecondary
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                color: Theme.surface
+                border.color: Theme.border
+                border.width: 1
+                implicitHeight: footerActions.implicitHeight + (Theme.spacingMedium * 2)
+
+                RowLayout {
+                    id: footerActions
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.spacingMedium
+                    anchors.rightMargin: Theme.spacingMedium
+                    anchors.topMargin: Theme.spacingMedium
+                    anchors.bottomMargin: Theme.spacingMedium
+                    spacing: Theme.spacingSmall
+
+                    AppButton {
+                        text: "Apply filters"
+                        isPrimary: true
+                        accentColor: rightFiltersDrawer.accentColor
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    AppButton {
+                        text: "Clear filters"
+                        isPrimary: false
+                        isOutline: true
+                        accentColor: rightFiltersDrawer.accentColor
+                        onClicked: rightFiltersDrawer.resetDraftFilters()
+                    }
+                }
             }
         }
     }
