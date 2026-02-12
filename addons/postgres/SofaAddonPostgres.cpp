@@ -38,6 +38,24 @@ QString temporalNowExpressionForGroup(const QString& group)
     }
     return QString();
 }
+
+bool isNumericPostgresType(const QString& rawType)
+{
+    const QString t = rawType.trimmed().toLower();
+    return t == "int2"
+        || t == "int4"
+        || t == "int8"
+        || t == "smallint"
+        || t == "integer"
+        || t == "bigint"
+        || t == "float4"
+        || t == "float8"
+        || t == "real"
+        || t == "double precision"
+        || t == "numeric"
+        || t == "decimal"
+        || t == "money";
+}
 }
 
 // --- PostgresConnection ---
@@ -216,6 +234,7 @@ TableSchema PostgresCatalogProvider::getTableSchema(const QString& schema, const
             else if (typeStr.contains("bool")) col.type = DataType::Boolean;
             else if (typeStr.contains("date") || typeStr.contains("time")) col.type = DataType::Text; // Handle dates as text for now
             else col.type = DataType::Text;
+            col.isNumeric = isNumericPostgresType(col.rawType);
 
             col.temporalInputGroup = temporalInputGroupFromPostgresType(col.rawType);
             col.temporalNowExpression = temporalNowExpressionForGroup(col.temporalInputGroup);
@@ -264,8 +283,15 @@ DatasetPage PostgresQueryProvider::execute(const QString& queryStr, const Datase
         
         // Simple mapping from QMetaType
         if (type == QMetaType::Int || type == QMetaType::LongLong) col.type = DataType::Integer;
+        else if (type == QMetaType::Double || type == QMetaType::Float) col.type = DataType::Real;
         else if (type == QMetaType::Bool) col.type = DataType::Boolean;
         else col.type = DataType::Text;
+        col.isNumeric = (type == QMetaType::Int
+                         || type == QMetaType::UInt
+                         || type == QMetaType::LongLong
+                         || type == QMetaType::ULongLong
+                         || type == QMetaType::Double
+                         || type == QMetaType::Float);
         
         col.rawType = record.field(i).metaType().name();
         page.columns.push_back(col);
@@ -407,6 +433,7 @@ DatasetPage PostgresQueryProvider::getDataset(const QString& schema, const QStri
         if (defaultValueByColumn.contains(col.name)) {
             col.defaultValue = defaultValueByColumn.value(col.name);
         }
+        col.isNumeric = isNumericPostgresType(col.rawType);
         col.temporalInputGroup = temporalInputGroupFromPostgresType(col.rawType);
         col.temporalNowExpression = temporalNowExpressionForGroup(col.temporalInputGroup);
     }

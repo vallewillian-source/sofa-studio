@@ -26,6 +26,7 @@ struct Column {
     QString temporalNowExpression; // integration-specific current temporal expression
     bool isPrimaryKey = false;
     bool isNullable = true;
+    bool isNumeric = false; // integration-defined numeric semantic
     int displayWidth = 100;
 };
 

@@ -172,6 +172,14 @@ bool DataGridEngine::getColumnIsPrimaryKey(int index) const
     return false;
 }
 
+bool DataGridEngine::getColumnIsNumeric(int index) const
+{
+    if (index >= 0 && index < m_schema.columns.size()) {
+        return m_schema.columns[index].isNumeric;
+    }
+    return false;
+}
+
 QVariantList DataGridEngine::getRow(int row) const
 {
     QVariantList list;
@@ -210,12 +218,14 @@ void DataGridEngine::loadFromVariant(const QVariantMap& data)
         col.temporalNowExpression = map["temporalNowExpression"].toString();
         col.isPrimaryKey = map["isPrimaryKey"].toBool();
         col.isNullable = map.value("isNullable", true).toBool();
+        col.isNumeric = map.value("isNumeric", false).toBool();
         QString raw = col.rawType.toLower();
         
         // Heuristic for column width based on type and name
         if (raw.contains("int") || raw.contains("serial") || raw.contains("number")) {
             col.type = Sofa::Core::DataType::Integer;
             col.displayWidth = 100;
+            col.isNumeric = true;
         }
         else if (raw.contains("bool")) {
             col.type = Sofa::Core::DataType::Boolean;
@@ -232,6 +242,19 @@ void DataGridEngine::loadFromVariant(const QVariantMap& data)
         else {
             col.type = Sofa::Core::DataType::Text;
             col.displayWidth = 150; // Default text
+        }
+
+        if (!col.isNumeric) {
+            if (raw.contains("int")
+                || raw.contains("serial")
+                || raw.contains("number")
+                || raw.contains("numeric")
+                || raw.contains("decimal")
+                || raw.contains("float")
+                || raw.contains("double")
+                || raw == "real") {
+                col.isNumeric = true;
+            }
         }
         
         // ID/UUID special case

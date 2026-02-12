@@ -37,6 +37,7 @@ public:
     Q_INVOKABLE QString getColumnTemporalNowExpression(int index) const;
     Q_INVOKABLE bool getColumnIsNullable(int index) const;
     Q_INVOKABLE bool getColumnIsPrimaryKey(int index) const;
+    Q_INVOKABLE bool getColumnIsNumeric(int index) const;
     Q_INVOKABLE QVariantList getRow(int row) const;
     
     // For View

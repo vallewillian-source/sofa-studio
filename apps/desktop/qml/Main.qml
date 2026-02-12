@@ -590,7 +590,8 @@ ApplicationWindow {
                         "temporalInputGroup": gridEngine.getColumnTemporalInputGroup(i),
                         "temporalNowExpression": gridEngine.getColumnTemporalNowExpression(i),
                         "isNullable": gridEngine.getColumnIsNullable(i),
-                        "isPrimaryKey": gridEngine.getColumnIsPrimaryKey(i)
+                        "isPrimaryKey": gridEngine.getColumnIsPrimaryKey(i),
+                        "isNumeric": gridEngine.getColumnIsNumeric(i)
                     })
                 }
                 return cols
@@ -1470,10 +1471,12 @@ ApplicationWindow {
                 var colName = String((cols[i] && cols[i].name) ? cols[i].name : "")
                 if (colName.length === 0) continue
                 var colType = String((cols[i] && cols[i].type) ? cols[i].type : "")
+                var colIsNumeric = cols[i] && cols[i].isNumeric === true
                 simpleFieldModel.append({
                     "label": colName,
                     "sqlName": colName,
-                    "sqlType": colType
+                    "sqlType": colType,
+                    "isNumeric": colIsNumeric
                 })
             }
 
@@ -1538,6 +1541,13 @@ ApplicationWindow {
             return String(simpleFieldModel.get(simpleSelectedFieldIndex).sqlType || "").toLowerCase()
         }
 
+        function currentSimpleFieldIsNumeric() {
+            if (simpleSelectedFieldIndex < 0 || simpleSelectedFieldIndex >= simpleFieldModel.count) {
+                return false
+            }
+            return simpleFieldModel.get(simpleSelectedFieldIndex).isNumeric === true
+        }
+
         function currentSimpleOperatorSql() {
             if (simpleSelectedOperatorIndex < 0 || simpleSelectedOperatorIndex >= simpleOperatorModel.count) {
                 return "="
@@ -1559,6 +1569,12 @@ ApplicationWindow {
             return simpleOperatorModel.get(simpleSelectedOperatorIndex).usesPattern === true
         }
 
+        function isValidNumericLiteral(rawValue) {
+            var text = String(rawValue || "").trim()
+            if (text.length === 0) return false
+            return /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/.test(text)
+        }
+
         function buildSimpleWhereClause() {
             if (simpleFieldModel.count <= 0) return ""
             var fieldSqlBase = quoteIdentifier(currentSimpleFieldSqlName())
@@ -1572,7 +1588,15 @@ ApplicationWindow {
                 return ""
             }
             var fieldSql = fieldSqlBase
-            if (currentSimpleOperatorUsesPattern() || fieldSqlType.indexOf("uuid") !== -1) {
+            if (currentSimpleOperatorUsesPattern()) {
+                fieldSql = fieldSqlBase + "::text"
+            } else if (currentSimpleFieldIsNumeric()) {
+                var numericLiteral = String(valueText).trim()
+                if (!isValidNumericLiteral(numericLiteral)) {
+                    return ""
+                }
+                return fieldSql + " " + opSql + " " + numericLiteral
+            } else if (fieldSqlType.indexOf("uuid") !== -1) {
                 fieldSql = fieldSqlBase + "::text"
             }
             if (currentSimpleOperatorUsesPattern()) {

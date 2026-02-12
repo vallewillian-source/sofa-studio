@@ -443,6 +443,7 @@ QVariantMap AppContext::runQuery(const QString& queryText)
         colMap["temporalNowExpression"] = col.temporalNowExpression;
         colMap["isPrimaryKey"] = col.isPrimaryKey;
         colMap["isNullable"] = col.isNullable;
+        colMap["isNumeric"] = col.isNumeric;
         columns.append(colMap);
     }
     result["columns"] = columns;
@@ -570,6 +571,7 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
         c["temporalNowExpression"] = col.temporalNowExpression;
         c["isPrimaryKey"] = col.isPrimaryKey;
         c["isNullable"] = col.isNullable;
+        c["isNumeric"] = col.isNumeric;
         columns.append(c);
     }
     result["columns"] = columns;

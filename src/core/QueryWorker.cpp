@@ -28,6 +28,7 @@ QVariantMap QueryWorker::datasetToVariant(const DatasetPage& page)
         colMap["temporalNowExpression"] = col.temporalNowExpression;
         colMap["isPrimaryKey"] = col.isPrimaryKey;
         colMap["isNullable"] = col.isNullable;
+        colMap["isNumeric"] = col.isNumeric;
         columns.append(colMap);
     }
     result["columns"] = columns;
