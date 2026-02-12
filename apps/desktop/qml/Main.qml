@@ -1005,6 +1005,22 @@ ApplicationWindow {
                     Item { Layout.fillWidth: true }
 
                     AppButton {
+                        id: btnClearFiltersInline
+                        visible: tableRoot.appliedFilterClause.trim().length > 0
+                        text: "Clear filters"
+                        icon.source: "qrc:/qt/qml/sofa/ui/assets/rotate-right-solid-full.svg"
+                        isPrimary: false
+                        isOutline: true
+                        accentColor: Theme.textSecondary
+                        Layout.preferredHeight: 24
+                        iconSize: 12
+                        spacing: 4
+                        opacity: 0.9
+                        font.weight: Font.Medium
+                        onClicked: rightFiltersDrawer.clearAppliedFilters()
+                    }
+
+                    AppButton {
                         id: btnFilters
                         text: "Filters"
                         isPrimary: false

@@ -18,6 +18,17 @@ Item {
     property bool sortAscending: true
     property bool sortActive: false
     property var lastResult: ({})
+    readonly property color activeConnectionColor: {
+        var id = App.activeConnectionId
+        if (id === -1) return Theme.accent
+        var conns = App.connections
+        for (var i = 0; i < conns.length; i++) {
+            if (conns[i].id === id) {
+                return Theme.getConnectionColor(conns[i].name, conns[i].color)
+            }
+        }
+        return Theme.accent
+    }
     signal queryTextEdited(string text)
 
     function setQueryText(text) {
@@ -145,11 +156,14 @@ Item {
                         AppButton {
                             text: "Run"
                             isPrimary: true
+                            accentColor: root.activeConnectionColor
                             onClicked: runQuery()
                         }
 
                         AppButton {
                             text: "Cancel"
+                            isOutline: true
+                            accentColor: root.activeConnectionColor
                             enabled: root.running
                             onClicked: {
                                 if (root.running) {
@@ -179,7 +193,7 @@ Item {
                         font.family: Qt.platform.os === "osx" ? "Menlo" : "Monospace"
                         font.pixelSize: 13
                         color: Theme.textPrimary
-                        selectionColor: Theme.accent
+                        selectionColor: root.activeConnectionColor
                         selectedTextColor: "#FFFFFF"
                         selectByMouse: true
                         background: Rectangle { color: "transparent" }
@@ -209,9 +223,9 @@ Item {
 
                     SqlSyntaxHighlighter {
                         document: queryEditor.textDocument
-                        keywordColor: Theme.accentSecondary
-                        stringColor: Theme.tintColor(Theme.textPrimary, Theme.connectionAvatarColors[3], 0.55)
-                        numberColor: Theme.tintColor(Theme.textPrimary, Theme.connectionAvatarColors[8], 0.65)
+                        keywordColor: root.activeConnectionColor
+                        stringColor: Theme.tintColor(Theme.textPrimary, root.activeConnectionColor, 0.35)
+                        numberColor: Theme.tintColor(Theme.textPrimary, root.activeConnectionColor, 0.55)
                         commentColor: Theme.textSecondary
                     }
                 }
@@ -235,6 +249,7 @@ Item {
                     DataGrid {
                         anchors.fill: parent
                         engine: gridEngine
+                        addRowAccentColor: root.activeConnectionColor
                         emptyStateSuppressed: root.running || root.errorMessage.length > 0
                         emptyStateTitle: "No results returned"
                         emptyStateDescription: "Run another query or adjust the current SQL to retrieve matching rows."
@@ -258,7 +273,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: root.running ? "Carregando..." : (root.errorMessage.length > 0 ? root.errorMessage : "Sem resultados.")
-                            color: root.errorMessage.length > 0 ? Theme.error : Theme.textSecondary
+                            color: root.errorMessage.length > 0 ? Theme.error : root.activeConnectionColor
                             font.pixelSize: 14
                         }
                     }
@@ -287,7 +302,9 @@ Item {
                         Label {
                             id: statusLabel
                             text: root.statusText
-                            color: Theme.textSecondary
+                            color: root.errorMessage.length > 0
+                                ? Theme.error
+                                : (root.running ? root.activeConnectionColor : Theme.textSecondary)
                             font.pixelSize: 11
                         }
                     }
