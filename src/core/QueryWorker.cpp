@@ -24,6 +24,8 @@ QVariantMap QueryWorker::datasetToVariant(const DatasetPage& page)
         colMap["name"] = col.name;
         colMap["type"] = col.rawType;
         colMap["defaultValue"] = col.defaultValue;
+        colMap["temporalInputGroup"] = col.temporalInputGroup;
+        colMap["temporalNowExpression"] = col.temporalNowExpression;
         colMap["isPrimaryKey"] = col.isPrimaryKey;
         colMap["isNullable"] = col.isNullable;
         columns.append(colMap);

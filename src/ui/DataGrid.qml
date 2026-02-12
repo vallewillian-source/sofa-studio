@@ -33,7 +33,7 @@ Rectangle {
     signal previousClicked()
     signal nextClicked()
     signal sortRequested(int columnIndex, bool ascending)
-    signal editRowRequested(int rowIndex)
+    signal editRowRequested(int rowIndex, int columnIndex)
     
     function showToast(message) {
         toastText = message
@@ -261,6 +261,12 @@ Rectangle {
                     }
                 }
 
+                onCellDoubleClicked: (row, col) => {
+                    if (row >= 0 && col >= 0) {
+                        root.editRowRequested(row, col)
+                    }
+                }
+
                 onSortRequested: (columnIndex, ascending) => {
                     root.sortRequested(columnIndex, ascending)
                 }
@@ -356,7 +362,7 @@ Rectangle {
                 Controls.MenuItem {
                     text: "Edit Row"
                     enabled: contextRow !== -1
-                    onTriggered: root.editRowRequested(contextRow)
+                    onTriggered: root.editRowRequested(contextRow, contextCol)
                 }
 
                 Controls.MenuSeparator {}

@@ -140,6 +140,22 @@ QString DataGridEngine::getColumnDefaultValue(int index) const
     return QString();
 }
 
+QString DataGridEngine::getColumnTemporalInputGroup(int index) const
+{
+    if (index >= 0 && index < m_schema.columns.size()) {
+        return m_schema.columns[index].temporalInputGroup;
+    }
+    return QString();
+}
+
+QString DataGridEngine::getColumnTemporalNowExpression(int index) const
+{
+    if (index >= 0 && index < m_schema.columns.size()) {
+        return m_schema.columns[index].temporalNowExpression;
+    }
+    return QString();
+}
+
 bool DataGridEngine::getColumnIsNullable(int index) const
 {
     if (index >= 0 && index < m_schema.columns.size()) {
@@ -190,6 +206,8 @@ void DataGridEngine::loadFromVariant(const QVariantMap& data)
         col.name = map["name"].toString();
         col.rawType = map["type"].toString();
         col.defaultValue = map["defaultValue"].toString();
+        col.temporalInputGroup = map["temporalInputGroup"].toString();
+        col.temporalNowExpression = map["temporalNowExpression"].toString();
         col.isPrimaryKey = map["isPrimaryKey"].toBool();
         col.isNullable = map.value("isNullable", true).toBool();
         QString raw = col.rawType.toLower();

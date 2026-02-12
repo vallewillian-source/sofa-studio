@@ -85,6 +85,7 @@ signals:
     void sortAscendingChanged();
     
     void sortRequested(int columnIndex, bool ascending);
+    void cellDoubleClicked(int row, int column);
     void cellContextMenuRequested(int row, int column, double x, double y);
     void columnResized(int index, int width);
     void rowHeightResized(double height);

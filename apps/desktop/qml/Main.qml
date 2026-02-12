@@ -571,6 +571,8 @@ ApplicationWindow {
                         "name": gridEngine.getColumnName(i),
                         "type": gridEngine.getColumnType(i),
                         "defaultValue": gridEngine.getColumnDefaultValue(i),
+                        "temporalInputGroup": gridEngine.getColumnTemporalInputGroup(i),
+                        "temporalNowExpression": gridEngine.getColumnTemporalNowExpression(i),
                         "isNullable": gridEngine.getColumnIsNullable(i),
                         "isPrimaryKey": gridEngine.getColumnIsPrimaryKey(i)
                     })
@@ -705,13 +707,17 @@ ApplicationWindow {
                 rowEditorModal.openForAdd(tableRoot.schema, tableRoot.tableName, cols)
             }
 
-            function openEditRowModal(rowIndex) {
+            function openEditRowModal(rowIndex, focusColumnIndex) {
                 if (rowIndex === undefined || rowIndex === null || rowIndex < 0) return
                 var cols = addRowColumns()
                 if (cols.length === 0) return
                 var rowValues = gridEngine.getRow(rowIndex)
                 if (!rowValues || rowValues.length === 0) return
-                rowEditorModal.openForEdit(tableRoot.schema, tableRoot.tableName, cols, rowValues)
+                var focusIndex = Number(focusColumnIndex)
+                if (!isFinite(focusIndex)) {
+                    focusIndex = -1
+                }
+                rowEditorModal.openForEdit(tableRoot.schema, tableRoot.tableName, cols, rowValues, focusIndex)
             }
 
             function buildInsertSql(entries) {
@@ -759,10 +765,10 @@ ApplicationWindow {
                     var colName = quoteIdentifier(entry.name)
                     var valueText = String(entry.value === null || entry.value === undefined ? "" : entry.value)
                     var trimmed = valueText.trim()
+                    var initialText = String(entry.initialValue === null || entry.initialValue === undefined ? "" : entry.initialValue)
                     var original = entry.originalValue
-                    var originalText = String(original === null || original === undefined ? "" : original)
 
-                    if (valueText !== originalText) {
+                    if (valueText !== initialText) {
                         if (trimmed.toUpperCase() === "NULL") {
                             setParts.push(colName + " = NULL")
                         } else {
@@ -1004,8 +1010,8 @@ ApplicationWindow {
                 onPreviousClicked: tableRoot.previousPage()
                 onNextClicked: tableRoot.nextPage()
                 onAddRowClicked: tableRoot.openAddRowModal()
-                onEditRowRequested: (rowIndex) => {
-                    tableRoot.openEditRowModal(rowIndex)
+                onEditRowRequested: (rowIndex, columnIndex) => {
+                    tableRoot.openEditRowModal(rowIndex, columnIndex)
                 }
                 onSortRequested: (columnIndex, ascending) => {
                     var columnName = gridEngine.getColumnName(columnIndex)

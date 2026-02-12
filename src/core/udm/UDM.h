@@ -22,6 +22,8 @@ struct Column {
     DataType type;
     QString rawType; // original db type name
     QString defaultValue;
+    QString temporalInputGroup; // "", "date", "time", "datetime"
+    QString temporalNowExpression; // integration-specific current temporal expression
     bool isPrimaryKey = false;
     bool isNullable = true;
     int displayWidth = 100;

@@ -418,6 +418,8 @@ QVariantMap AppContext::runQuery(const QString& queryText)
         colMap["name"] = col.name;
         colMap["type"] = col.rawType;
         colMap["defaultValue"] = col.defaultValue;
+        colMap["temporalInputGroup"] = col.temporalInputGroup;
+        colMap["temporalNowExpression"] = col.temporalNowExpression;
         colMap["isPrimaryKey"] = col.isPrimaryKey;
         colMap["isNullable"] = col.isNullable;
         columns.append(colMap);
@@ -541,6 +543,8 @@ QVariantMap AppContext::getDataset(const QString& schema, const QString& table, 
         c["name"] = col.name;
         c["type"] = col.rawType;
         c["defaultValue"] = col.defaultValue;
+        c["temporalInputGroup"] = col.temporalInputGroup;
+        c["temporalNowExpression"] = col.temporalNowExpression;
         c["isPrimaryKey"] = col.isPrimaryKey;
         c["isNullable"] = col.isNullable;
         columns.append(c);

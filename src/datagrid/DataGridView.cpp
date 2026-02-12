@@ -674,6 +674,25 @@ void DataGridView::mouseDoubleClickEvent(QMouseEvent* event)
         return;
     }
 
+    // Double-click on data cell opens row editing flow.
+    if (y >= m_rowHeight && x > m_gutterWidth) {
+        const double absoluteY = y - m_rowHeight + m_contentY;
+        const int row = rowAtContentY(absoluteY);
+        if (row >= 0 && row < m_engine->rowCount()) {
+            const int col = columnAtPosition(x);
+            if (col >= 0 && col < m_engine->columnCount()) {
+                if (m_selectedRow != row || m_selectedCol != col) {
+                    m_selectedRow = row;
+                    m_selectedCol = col;
+                    update();
+                }
+                emit cellDoubleClicked(row, col);
+                event->accept();
+                return;
+            }
+        }
+    }
+
     QQuickPaintedItem::mouseDoubleClickEvent(event);
 }
 

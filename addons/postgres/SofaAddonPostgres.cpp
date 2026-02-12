@@ -9,6 +9,36 @@
 #include <QSet>
 
 namespace Sofa::Addons::Postgres {
+namespace {
+QString temporalInputGroupFromPostgresType(const QString& rawType)
+{
+    const QString t = rawType.trimmed().toLower();
+    if (t == "date") {
+        return QStringLiteral("date");
+    }
+    if (t == "time" || t == "timetz") {
+        return QStringLiteral("time");
+    }
+    if (t == "timestamp" || t == "timestamptz") {
+        return QStringLiteral("datetime");
+    }
+    return QString();
+}
+
+QString temporalNowExpressionForGroup(const QString& group)
+{
+    if (group == "date") {
+        return QStringLiteral("CURRENT_DATE");
+    }
+    if (group == "time") {
+        return QStringLiteral("CURRENT_TIME");
+    }
+    if (group == "datetime") {
+        return QStringLiteral("NOW()");
+    }
+    return QString();
+}
+}
 
 // --- PostgresConnection ---
 
@@ -186,6 +216,9 @@ TableSchema PostgresCatalogProvider::getTableSchema(const QString& schema, const
             else if (typeStr.contains("bool")) col.type = DataType::Boolean;
             else if (typeStr.contains("date") || typeStr.contains("time")) col.type = DataType::Text; // Handle dates as text for now
             else col.type = DataType::Text;
+
+            col.temporalInputGroup = temporalInputGroupFromPostgresType(col.rawType);
+            col.temporalNowExpression = temporalNowExpressionForGroup(col.temporalInputGroup);
             
             ts.columns.push_back(col);
         }
@@ -369,6 +402,8 @@ DatasetPage PostgresQueryProvider::getDataset(const QString& schema, const QStri
         if (defaultValueByColumn.contains(col.name)) {
             col.defaultValue = defaultValueByColumn.value(col.name);
         }
+        col.temporalInputGroup = temporalInputGroupFromPostgresType(col.rawType);
+        col.temporalNowExpression = temporalNowExpressionForGroup(col.temporalInputGroup);
     }
 
     return page;

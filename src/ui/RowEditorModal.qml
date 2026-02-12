@@ -41,8 +41,37 @@ Popup {
     property string expandedFieldName: ""
     property string expandedFieldType: ""
     property string expandedFieldValue: ""
+    property int temporalEditingFieldIndex: -1
+    property string temporalEditingGroup: ""
+    property string temporalDraftDate: ""
+    property int temporalDraftHour: 0
+    property int temporalDraftMinute: 0
+    property int temporalDraftSecond: 0
+    property int temporalDraftMillisecond: 0
+    property var temporalOutputFormat: ({})
+    property var temporalVisibleMonth: new Date()
 
     signal submitRequested(var entries)
+    Component.onCompleted: ensureTemporalTimeModels()
+
+    function focusFieldEditor(preferredIndex) {
+        var preferred = Number(preferredIndex)
+        if (isFinite(preferred) && preferred >= 0 && preferred < fieldRepeater.count) {
+            var preferredItem = fieldRepeater.itemAt(preferred)
+            if (preferredItem && preferredItem.focusEditor) {
+                preferredItem.focusEditor()
+                return
+            }
+        }
+
+        for (var i = 0; i < fieldRepeater.count; i++) {
+            var item = fieldRepeater.itemAt(i)
+            if (item && item.focusEditor) {
+                item.focusEditor()
+                return
+            }
+        }
+    }
 
     function openForAdd(schema, table, columns) {
         editing = false
@@ -60,6 +89,8 @@ Popup {
             var columnDefaultValue = ""
             var columnIsNullable = true
             var columnIsPrimaryKey = false
+            var columnTemporalInputGroup = ""
+            var columnTemporalNowExpression = ""
             if (typeof column === "string") {
                 columnName = column
             } else if (column) {
@@ -68,6 +99,8 @@ Popup {
                 columnDefaultValue = column.defaultValue || ""
                 columnIsNullable = column.isNullable !== false
                 columnIsPrimaryKey = column.isPrimaryKey === true
+                columnTemporalInputGroup = column.temporalInputGroup || ""
+                columnTemporalNowExpression = column.temporalNowExpression || ""
             }
             if (!columnName || columnName.length === 0) {
                 continue
@@ -76,6 +109,8 @@ Popup {
                 "name": columnName,
                 "type": columnType,
                 "defaultValue": columnDefaultValue,
+                "temporalInputGroup": columnTemporalInputGroup,
+                "temporalNowExpression": columnTemporalNowExpression,
                 "notNull": !columnIsNullable,
                 "isPrimaryKey": columnIsPrimaryKey,
                 "initialValue": "",
@@ -86,14 +121,11 @@ Popup {
 
         open()
         Qt.callLater(function() {
-            var firstItem = fieldRepeater.itemAt(0)
-            if (firstItem && firstItem.focusEditor) {
-                firstItem.focusEditor()
-            }
+            root.focusFieldEditor(0)
         })
     }
 
-    function openForEdit(schema, table, columns, rowValues) {
+    function openForEdit(schema, table, columns, rowValues, preferredFocusFieldIndex) {
         editing = true
         schemaName = schema || ""
         tableName = table || ""
@@ -111,6 +143,8 @@ Popup {
             var columnDefaultValue = ""
             var columnIsNullable = true
             var columnIsPrimaryKey = false
+            var columnTemporalInputGroup = ""
+            var columnTemporalNowExpression = ""
             if (typeof column === "string") {
                 columnName = column
             } else if (column) {
@@ -119,6 +153,8 @@ Popup {
                 columnDefaultValue = column.defaultValue || ""
                 columnIsNullable = column.isNullable !== false
                 columnIsPrimaryKey = column.isPrimaryKey === true
+                columnTemporalInputGroup = column.temporalInputGroup || ""
+                columnTemporalNowExpression = column.temporalNowExpression || ""
             }
             if (!columnName || columnName.length === 0) {
                 continue
@@ -131,6 +167,8 @@ Popup {
                 "name": columnName,
                 "type": columnType,
                 "defaultValue": columnDefaultValue,
+                "temporalInputGroup": columnTemporalInputGroup,
+                "temporalNowExpression": columnTemporalNowExpression,
                 "notNull": !columnIsNullable,
                 "isPrimaryKey": columnIsPrimaryKey,
                 "initialValue": displayValue,
@@ -141,10 +179,7 @@ Popup {
 
         open()
         Qt.callLater(function() {
-            var firstItem = fieldRepeater.itemAt(0)
-            if (firstItem && firstItem.focusEditor) {
-                firstItem.focusEditor()
-            }
+            root.focusFieldEditor(preferredFocusFieldIndex)
         })
     }
 
@@ -155,8 +190,10 @@ Popup {
             entries.push({
                 "name": row.name,
                 "value": row.value,
+                "initialValue": row.initialValue,
                 "originalValue": row.originalRawValue,
-                "isPrimaryKey": row.isPrimaryKey === true
+                "isPrimaryKey": row.isPrimaryKey === true,
+                "temporalNowExpression": row.temporalNowExpression || ""
             })
         }
         return entries
@@ -177,6 +214,314 @@ Popup {
     function isMultilineColumnType(typeName) {
         var normalized = String(typeName === null || typeName === undefined ? "" : typeName).trim().toLowerCase()
         return normalized === "text" || normalized.endsWith(".text")
+    }
+
+    function temporalPlaceholder(groupName) {
+        var normalized = String(groupName === null || groupName === undefined ? "" : groupName).trim().toLowerCase()
+        if (normalized === "date") return "YYYY-MM-DD"
+        if (normalized === "time") return "HH:MM"
+        if (normalized === "datetime") return "YYYY-MM-DD HH:MM"
+        return ""
+    }
+
+    function pad2(value) {
+        return value < 10 ? "0" + value : "" + value
+    }
+
+    function dateKey(dateObj) {
+        if (!dateObj) return ""
+        var d = new Date(dateObj)
+        if (isNaN(d.getTime())) return ""
+        return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())
+    }
+
+    function nowLiteralForTemporalGroup(groupName) {
+        var now = new Date()
+        var datePart = now.getFullYear() + "-" + pad2(now.getMonth() + 1) + "-" + pad2(now.getDate())
+        var timePart = pad2(now.getHours()) + ":" + pad2(now.getMinutes())
+        var normalized = String(groupName === null || groupName === undefined ? "" : groupName).trim().toLowerCase()
+        if (normalized === "date") return datePart
+        if (normalized === "time") return timePart
+        if (normalized === "datetime") return datePart + " " + timePart
+        return ""
+    }
+
+    function temporalDisplayText(currentValue, defaultValue, groupName) {
+        var liveValue = currentValue === null || currentValue === undefined ? "" : String(currentValue)
+        if (liveValue.length > 0) return liveValue
+        var fallback = defaultValue === null || defaultValue === undefined ? "" : String(defaultValue)
+        if (fallback.length > 0) return fallback
+        return temporalPlaceholder(groupName)
+    }
+
+    function extractDatePart(rawValue) {
+        var raw = String(rawValue === null || rawValue === undefined ? "" : rawValue)
+        if (raw.length === 0) return ""
+
+        var isoLike = raw.match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/)
+        if (isoLike) {
+            return isoLike[1] + "-" + isoLike[2] + "-" + isoLike[3]
+        }
+
+        var brLike = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+        if (brLike) {
+            return brLike[3] + "-" + brLike[2] + "-" + brLike[1]
+        }
+
+        var parsedDate = new Date(raw)
+        if (!isNaN(parsedDate.getTime())) {
+            return parsedDate.getFullYear() + "-" + pad2(parsedDate.getMonth() + 1) + "-" + pad2(parsedDate.getDate())
+        }
+        return ""
+    }
+
+    function extractTimeParts(rawValue) {
+        var raw = String(rawValue === null || rawValue === undefined ? "" : rawValue)
+        if (raw.length === 0) return ({ "h": -1, "m": -1 })
+
+        var match = raw.match(/(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(?:\s*(Z|[+-]\d{2}(?::?\d{2})?))?/)
+        if (!match) {
+            var parsedDate = new Date(raw)
+            if (!isNaN(parsedDate.getTime())) {
+                return ({
+                    "h": Math.max(0, Math.min(23, parsedDate.getHours())),
+                    "m": Math.max(0, Math.min(59, parsedDate.getMinutes())),
+                    "s": Math.max(0, Math.min(59, parsedDate.getSeconds())),
+                    "ms": Math.max(0, Math.min(999, parsedDate.getMilliseconds())),
+                    "tz": ""
+                })
+            }
+            return ({ "h": -1, "m": -1 })
+        }
+        var secondValue = match[3] ? Math.max(0, Math.min(59, parseInt(match[3]))) : 0
+        var msValue = match[4] ? Math.max(0, Math.min(999, parseInt((match[4] + "000").slice(0, 3)))) : 0
+        return ({
+            "h": Math.max(0, Math.min(23, parseInt(match[1]))),
+            "m": Math.max(0, Math.min(59, parseInt(match[2]))),
+            "s": secondValue,
+            "ms": msValue,
+            "tz": match[5] ? String(match[5]) : ""
+        })
+    }
+
+    function detectTemporalOutputFormat(rawValue, groupName) {
+        var normalized = String(groupName === null || groupName === undefined ? "" : groupName).trim().toLowerCase()
+        var raw = String(rawValue === null || rawValue === undefined ? "" : rawValue)
+        var fmt = {
+            "dateOrder": "ymd",
+            "dateSep": "-",
+            "dateTimeSep": " ",
+            "hasSeconds": false,
+            "msDigits": 0,
+            "tzSuffix": ""
+        }
+
+        var ymd = raw.match(/(\d{4})([-\/])(\d{2})\2(\d{2})/)
+        if (ymd) {
+            fmt.dateOrder = "ymd"
+            fmt.dateSep = ymd[2]
+        } else {
+            var dmy = raw.match(/(\d{2})([-\/])(\d{2})\2(\d{4})/)
+            if (dmy) {
+                fmt.dateOrder = "dmy"
+                fmt.dateSep = dmy[2]
+            }
+        }
+
+        var dateTimeSepMatch = raw.match(/\d{4}[-\/]\d{2}[-\/]\d{2}(T| )\d{1,2}:\d{2}/)
+        if (!dateTimeSepMatch) {
+            dateTimeSepMatch = raw.match(/\d{2}[-\/]\d{2}[-\/]\d{4}(T| )\d{1,2}:\d{2}/)
+        }
+        if (dateTimeSepMatch) {
+            fmt.dateTimeSep = dateTimeSepMatch[1]
+        }
+
+        var timeMatch = raw.match(/(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(?:\s*(Z|[+-]\d{2}(?::?\d{2})?))?/)
+        if (timeMatch) {
+            fmt.hasSeconds = !!timeMatch[3]
+            fmt.msDigits = timeMatch[4] ? String(timeMatch[4]).length : 0
+            fmt.tzSuffix = timeMatch[5] ? String(timeMatch[5]) : ""
+        } else if (normalized === "time" || normalized === "datetime") {
+            // Fallback: try Date parsing for unknown DB-localized strings.
+            var parsedDate = new Date(raw)
+            if (!isNaN(parsedDate.getTime())) {
+                fmt.hasSeconds = true
+                fmt.msDigits = 0
+                fmt.tzSuffix = ""
+            }
+        }
+
+        return fmt
+    }
+
+    function composeDateLiteral(datePart, formatSpec) {
+        if (!datePart || datePart.length === 0) return ""
+        var parts = datePart.split("-")
+        if (parts.length !== 3) return datePart
+        var y = parts[0]
+        var mm = parts[1]
+        var dd = parts[2]
+        var sep = formatSpec && formatSpec.dateSep ? formatSpec.dateSep : "-"
+        var order = formatSpec && formatSpec.dateOrder ? formatSpec.dateOrder : "ymd"
+        if (order === "dmy") {
+            return dd + sep + mm + sep + y
+        }
+        return y + sep + mm + sep + dd
+    }
+
+    function composeTimeLiteral(h, m, s, ms, formatSpec) {
+        var result = pad2(h) + ":" + pad2(m)
+        var hasSeconds = formatSpec && formatSpec.hasSeconds
+        if (hasSeconds) {
+            result += ":" + pad2(s)
+            var msDigits = formatSpec.msDigits ? Math.max(0, Math.min(3, Number(formatSpec.msDigits))) : 0
+            if (msDigits > 0) {
+                var msText = ("00" + String(Math.max(0, Math.min(999, ms)))).slice(-3)
+                result += "." + msText.slice(0, msDigits)
+            }
+        }
+        if (formatSpec && formatSpec.tzSuffix && String(formatSpec.tzSuffix).length > 0) {
+            result += String(formatSpec.tzSuffix)
+        }
+        return result
+    }
+
+    function composeTemporalLiteral(groupName, datePart, h, m, s, ms, formatSpec) {
+        var normalized = String(groupName === null || groupName === undefined ? "" : groupName).trim().toLowerCase()
+        var safeDate = (datePart && datePart.length > 0) ? datePart : nowLiteralForTemporalGroup("date")
+        var safeTime = composeTimeLiteral(h, m, s, ms, formatSpec)
+        if (normalized === "date") return composeDateLiteral(safeDate, formatSpec)
+        if (normalized === "time") return safeTime
+        if (normalized === "datetime") {
+            var dtSep = (formatSpec && formatSpec.dateTimeSep) ? formatSpec.dateTimeSep : " "
+            return composeDateLiteral(safeDate, formatSpec) + dtSep + safeTime
+        }
+        return ""
+    }
+
+    function parseTemporalSeedValue(rawValue, groupName) {
+        var normalized = String(groupName === null || groupName === undefined ? "" : groupName).trim().toLowerCase()
+        var datePart = extractDatePart(rawValue)
+        var time = extractTimeParts(rawValue)
+        var validDate = datePart.length > 0
+        var validTime = time.h >= 0 && time.m >= 0
+        return {
+            "group": normalized,
+            "date": validDate ? datePart : "",
+            "hour": validTime ? time.h : -1,
+            "minute": validTime ? time.m : -1,
+            "second": validTime ? time.s : 0,
+            "millisecond": validTime ? time.ms : 0,
+            "timeZoneSuffix": validTime && time.tz ? String(time.tz) : "",
+            "valid": normalized === "date"
+                     ? validDate
+                     : (normalized === "time"
+                        ? validTime
+                        : (validDate && validTime))
+        }
+    }
+
+    function openTemporalEditor(fieldIndex, groupName, currentValue, defaultValue) {
+        if (fieldIndex < 0 || fieldIndex >= fieldsModel.count) return
+        ensureTemporalTimeModels()
+
+        var normalized = String(groupName === null || groupName === undefined ? "" : groupName).trim().toLowerCase()
+        if (normalized !== "date" && normalized !== "time" && normalized !== "datetime") return
+
+        var seedValue = currentValue === null || currentValue === undefined ? "" : String(currentValue)
+        if (seedValue.length === 0) {
+            seedValue = defaultValue === null || defaultValue === undefined ? "" : String(defaultValue)
+        }
+
+        var parsed = parseTemporalSeedValue(seedValue, normalized)
+        var outputFmt = detectTemporalOutputFormat(seedValue, normalized)
+        if (parsed.timeZoneSuffix && parsed.timeZoneSuffix.length > 0) {
+            outputFmt.tzSuffix = parsed.timeZoneSuffix
+        }
+        var fallbackNow = new Date()
+
+        temporalEditingFieldIndex = fieldIndex
+        temporalEditingGroup = normalized
+        temporalOutputFormat = outputFmt
+        temporalDraftDate = parsed.valid && parsed.date.length > 0
+            ? parsed.date
+            : nowLiteralForTemporalGroup("date")
+        temporalDraftHour = parsed.valid && parsed.hour >= 0
+            ? parsed.hour
+            : fallbackNow.getHours()
+        temporalDraftMinute = parsed.valid && parsed.minute >= 0
+            ? parsed.minute
+            : fallbackNow.getMinutes()
+        temporalDraftSecond = parsed.valid ? parsed.second : fallbackNow.getSeconds()
+        temporalDraftMillisecond = parsed.valid ? parsed.millisecond : fallbackNow.getMilliseconds()
+        var monthSeed = new Date(temporalDraftDate + "T00:00:00")
+        if (isNaN(monthSeed.getTime())) {
+            monthSeed = fallbackNow
+        }
+        temporalVisibleMonth = new Date(monthSeed.getFullYear(), monthSeed.getMonth(), 1)
+        temporalEditorPopup.open()
+    }
+
+    function applyTemporalSubmit() {
+        if (temporalEditingFieldIndex < 0 || temporalEditingFieldIndex >= fieldsModel.count) {
+            temporalEditorPopup.close()
+            return
+        }
+        var finalValue = composeTemporalLiteral(
+                             temporalEditingGroup,
+                             temporalDraftDate,
+                             temporalDraftHour,
+                             temporalDraftMinute,
+                             temporalDraftSecond,
+                             temporalDraftMillisecond,
+                             temporalOutputFormat)
+        fieldsModel.setProperty(temporalEditingFieldIndex, "value", finalValue)
+        temporalEditorPopup.close()
+    }
+
+    function applyTemporalNow() {
+        if (temporalEditingFieldIndex < 0 || temporalEditingFieldIndex >= fieldsModel.count) {
+            temporalEditorPopup.close()
+            return
+        }
+        var now = new Date()
+        var datePart = now.getFullYear() + "-" + pad2(now.getMonth() + 1) + "-" + pad2(now.getDate())
+        var nowValue = composeTemporalLiteral(
+                           temporalEditingGroup,
+                           datePart,
+                           now.getHours(),
+                           now.getMinutes(),
+                           now.getSeconds(),
+                           now.getMilliseconds(),
+                           temporalOutputFormat)
+        fieldsModel.setProperty(temporalEditingFieldIndex, "value", nowValue)
+        temporalEditorPopup.close()
+    }
+
+    function setTemporalDraftDate(dateObj) {
+        if (!dateObj) return
+        var key = dateKey(dateObj)
+        if (!key || key.length === 0) return
+        temporalDraftDate = key
+    }
+
+    function ensureTemporalTimeModels() {
+        if (temporalHourModel.count === 0) {
+            for (var hour = 0; hour < 24; hour++) {
+                temporalHourModel.append({
+                    "label": pad2(hour),
+                    "value": hour
+                })
+            }
+        }
+        if (temporalMinuteModel.count === 0) {
+            for (var minute = 0; minute < 60; minute++) {
+                temporalMinuteModel.append({
+                    "label": pad2(minute),
+                    "value": minute
+                })
+            }
+        }
     }
 
     function openExpandedTextEditor(fieldIndex) {
@@ -347,6 +692,15 @@ Popup {
 
     ListModel {
         id: fieldsModel
+        dynamicRoles: true
+    }
+
+    ListModel {
+        id: temporalHourModel
+    }
+
+    ListModel {
+        id: temporalMinuteModel
     }
 
     contentItem: ColumnLayout {
@@ -533,10 +887,17 @@ Popup {
                                 color: Theme.surface
                                 border.width: 0
                                 implicitHeight: fieldCardContent.implicitHeight + (Theme.spacingMedium * 2)
+                                readonly property string temporalGroup: String(model.temporalInputGroup || "").trim().toLowerCase()
+                                readonly property bool useTemporalEditor: temporalGroup.length > 0
                                 readonly property bool useMultilineEditor: root.isMultilineColumnType(model.type)
+                                readonly property bool temporalShowsPlaceholder:
+                                    String(model.value === null || model.value === undefined ? "" : model.value).length === 0
+                                    && String(model.defaultValue === null || model.defaultValue === undefined ? "" : model.defaultValue).length === 0
 
                                 function focusEditor() {
-                                    if (singleLineInput.visible) {
+                                    if (fieldCard.useTemporalEditor) {
+                                        temporalFieldMouseArea.forceActiveFocus()
+                                    } else if (singleLineInput.visible) {
                                         singleLineInput.forceActiveFocus()
                                     } else if (multiLineInput.visible) {
                                         multiLineInput.forceActiveFocus()
@@ -595,10 +956,79 @@ Popup {
                                         }
                                     }
 
+                                    Rectangle {
+                                        id: temporalFieldBox
+                                        Layout.fillWidth: true
+                                        visible: fieldCard.useTemporalEditor
+                                        implicitHeight: 36
+                                        color: Theme.surface
+                                        border.color: temporalFieldMouseArea.containsMouse
+                                            || temporalFieldMouseArea.activeFocus
+                                            || temporalCalendarMouseArea.containsMouse
+                                            ? root.accentColor
+                                            : Theme.border
+                                        border.width: 1
+                                        radius: Theme.radius
+
+                                        RowLayout {
+                                            z: 1
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 10
+                                            spacing: Theme.spacingSmall
+
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.temporalDisplayText(model.value, model.defaultValue, fieldCard.temporalGroup)
+                                                color: fieldCard.temporalShowsPlaceholder ? Theme.textSecondary : Theme.textPrimary
+                                                font.pixelSize: 13
+                                                elide: Text.ElideRight
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
+
+                                            Rectangle {
+                                                id: temporalCalendarButton
+                                                Layout.preferredWidth: 66
+                                                Layout.preferredHeight: 22
+                                                radius: 5
+                                                color: Qt.rgba(Theme.textSecondary.r, Theme.textSecondary.g, Theme.textSecondary.b, 0.08)
+                                                border.width: 1
+                                                border.color: Theme.border
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: "calendar"
+                                                    color: Theme.textSecondary
+                                                    font.pixelSize: 10
+                                                    font.bold: true
+                                                }
+
+                                                MouseArea {
+                                                    id: temporalCalendarMouseArea
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    enabled: !root.submitting
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: root.openTemporalEditor(index, fieldCard.temporalGroup, model.value, model.defaultValue)
+                                                }
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: temporalFieldMouseArea
+                                            z: 0
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            enabled: !root.submitting
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.openTemporalEditor(index, fieldCard.temporalGroup, model.value, model.defaultValue)
+                                        }
+                                    }
+
                                     AppTextField {
                                         id: singleLineInput
                                         Layout.fillWidth: true
-                                        visible: !fieldCard.useMultilineEditor
+                                        visible: !fieldCard.useMultilineEditor && !fieldCard.useTemporalEditor
                                         accentColor: root.accentColor
                                         enabled: !root.submitting
                                         placeholderText: model.defaultValue || ""
@@ -611,7 +1041,7 @@ Popup {
                                     Rectangle {
                                         id: multiLineFieldBox
                                         Layout.fillWidth: true
-                                        visible: fieldCard.useMultilineEditor
+                                        visible: fieldCard.useMultilineEditor && !fieldCard.useTemporalEditor
                                         implicitHeight: 110
                                         color: Theme.surface
                                         border.color: multiLineInput.activeFocus ? root.accentColor : Theme.border
@@ -780,6 +1210,343 @@ Popup {
                         enabled: !root.submitting
                         onClicked: root.requestSubmit()
                     }
+                }
+            }
+        }
+    }
+
+    Popup {
+        id: temporalEditorPopup
+        parent: Overlay.overlay
+        modal: true
+        focus: true
+        closePolicy: Popup.NoAutoClose
+        width: {
+            if (!parent) return 420
+            var preferred = temporalEditorContent.showDateControls ? 420 : 360
+            return Math.min(preferred, Math.max(320, parent.width - (Theme.spacingXLarge * 2)))
+        }
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        padding: Theme.spacingLarge
+        implicitHeight: temporalEditorContent.implicitHeight + topPadding + bottomPadding
+        onClosed: {
+            root.temporalEditingFieldIndex = -1
+            root.temporalEditingGroup = ""
+            root.temporalOutputFormat = ({})
+        }
+
+        background: Rectangle {
+            color: Theme.surface
+            border.color: Theme.border
+            border.width: 1
+            radius: 10
+        }
+
+        contentItem: ColumnLayout {
+            id: temporalEditorContent
+            width: temporalEditorPopup.availableWidth
+            spacing: Theme.spacingMedium
+            readonly property bool showDateControls:
+                root.temporalEditingGroup === "date" || root.temporalEditingGroup === "datetime"
+            readonly property bool showTimeControls:
+                root.temporalEditingGroup === "time" || root.temporalEditingGroup === "datetime"
+
+            Text {
+                Layout.fillWidth: true
+                text: root.temporalEditingGroup === "date"
+                    ? "Select date"
+                    : (root.temporalEditingGroup === "time" ? "Select time" : "Select date and time")
+                color: Theme.textPrimary
+                font.pixelSize: 15
+                font.bold: true
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: temporalEditorContent.showDateControls
+                spacing: Theme.spacingSmall
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingSmall
+
+                    AppButton {
+                        text: "<"
+                        isOutline: true
+                        accentColor: root.accentColor
+                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: 28
+                        onClicked: {
+                            var prevMonth = new Date(root.temporalVisibleMonth)
+                            prevMonth.setMonth(prevMonth.getMonth() - 1)
+                            root.temporalVisibleMonth = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), 1)
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: Qt.formatDate(root.temporalVisibleMonth, "MMMM yyyy")
+                        color: Theme.textPrimary
+                        font.pixelSize: 13
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+
+                    AppButton {
+                        text: ">"
+                        isOutline: true
+                        accentColor: root.accentColor
+                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: 28
+                        onClicked: {
+                            var nextMonth = new Date(root.temporalVisibleMonth)
+                            nextMonth.setMonth(nextMonth.getMonth() + 1)
+                            root.temporalVisibleMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1)
+                        }
+                    }
+                }
+
+                DayOfWeekRow {
+                    Layout.fillWidth: true
+                    locale: Qt.locale()
+                    delegate: Text {
+                        required property var model
+                        text: model.shortName
+                        color: Theme.textSecondary
+                        font.pixelSize: 11
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+
+                MonthGrid {
+                    id: temporalMonthGrid
+                    Layout.fillWidth: true
+                    month: root.temporalVisibleMonth.getMonth()
+                    year: root.temporalVisibleMonth.getFullYear()
+                    locale: Qt.locale()
+
+                    delegate: Rectangle {
+                        required property var model
+                        required property var date
+                        width: 36
+                        height: 30
+                        radius: 6
+                        color: root.dateKey(date) === root.temporalDraftDate
+                            ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.22)
+                            : "transparent"
+                        border.width: root.dateKey(date) === root.temporalDraftDate ? 1 : 0
+                        border.color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.55)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: model.day
+                            color: date.getMonth() === temporalMonthGrid.month ? Theme.textPrimary : Theme.textSecondary
+                            font.pixelSize: 12
+                            opacity: date.getMonth() === temporalMonthGrid.month ? 1.0 : 0.45
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.setTemporalDraftDate(date)
+                        }
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: temporalEditorContent.showTimeControls
+                spacing: Theme.spacingSmall
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Time"
+                    color: Theme.textSecondary
+                    font.pixelSize: 11
+                    font.bold: true
+                    opacity: 0.9
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingSmall
+
+                    ComboBox {
+                        id: hourComboBox
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.buttonHeight
+                        textRole: "label"
+                        valueRole: "value"
+                        model: temporalHourModel
+                        currentIndex: Math.max(0, Math.min(temporalHourModel.count - 1, root.temporalDraftHour))
+                        onCurrentIndexChanged: {
+                            if (currentIndex >= 0 && currentIndex < temporalHourModel.count) {
+                                root.temporalDraftHour = Number(temporalHourModel.get(currentIndex).value)
+                            }
+                        }
+
+                        background: Rectangle {
+                            implicitHeight: Theme.buttonHeight
+                            color: Theme.surface
+                            border.color: parent.activeFocus ? root.accentColor : Theme.border
+                            border.width: 1
+                            radius: Theme.radius
+                        }
+
+                        contentItem: Text {
+                            leftPadding: 10
+                            rightPadding: 10
+                            text: hourComboBox.displayText
+                            color: Theme.textPrimary
+                            font.pixelSize: 13
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+
+                        delegate: ItemDelegate {
+                            required property string label
+                            required property int index
+                            width: hourComboBox.width
+                            height: 30
+                            contentItem: Text {
+                                text: label
+                                color: Theme.textPrimary
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                verticalAlignment: Text.AlignVCenter
+                                opacity: 1.0
+                            }
+                            background: Rectangle {
+                                color: highlighted ? Theme.surfaceHighlight : Theme.surface
+                            }
+                            highlighted: hourComboBox.highlightedIndex === index
+                        }
+
+                        popup: Popup {
+                            y: hourComboBox.height - 1
+                            width: hourComboBox.width
+                            implicitHeight: Math.min(contentItem.implicitHeight, 220)
+                            padding: 1
+
+                            contentItem: ListView {
+                                clip: true
+                                implicitHeight: contentHeight
+                                model: hourComboBox.popup.visible ? hourComboBox.delegateModel : null
+                                currentIndex: hourComboBox.highlightedIndex
+                                ScrollIndicator.vertical: ScrollIndicator { }
+                            }
+
+                            background: Rectangle {
+                                border.color: Theme.border
+                                color: Theme.surface
+                                radius: Theme.radius
+                            }
+                        }
+                    }
+
+                    ComboBox {
+                        id: minuteComboBox
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.buttonHeight
+                        textRole: "label"
+                        valueRole: "value"
+                        model: temporalMinuteModel
+                        currentIndex: Math.max(0, Math.min(temporalMinuteModel.count - 1, root.temporalDraftMinute))
+                        onCurrentIndexChanged: {
+                            if (currentIndex >= 0 && currentIndex < temporalMinuteModel.count) {
+                                root.temporalDraftMinute = Number(temporalMinuteModel.get(currentIndex).value)
+                            }
+                        }
+
+                        background: Rectangle {
+                            implicitHeight: Theme.buttonHeight
+                            color: Theme.surface
+                            border.color: parent.activeFocus ? root.accentColor : Theme.border
+                            border.width: 1
+                            radius: Theme.radius
+                        }
+
+                        contentItem: Text {
+                            leftPadding: 10
+                            rightPadding: 10
+                            text: minuteComboBox.displayText
+                            color: Theme.textPrimary
+                            font.pixelSize: 13
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+
+                        delegate: ItemDelegate {
+                            required property string label
+                            required property int index
+                            width: minuteComboBox.width
+                            height: 30
+                            contentItem: Text {
+                                text: label
+                                color: Theme.textPrimary
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                verticalAlignment: Text.AlignVCenter
+                                opacity: 1.0
+                            }
+                            background: Rectangle {
+                                color: highlighted ? Theme.surfaceHighlight : Theme.surface
+                            }
+                            highlighted: minuteComboBox.highlightedIndex === index
+                        }
+
+                        popup: Popup {
+                            y: minuteComboBox.height - 1
+                            width: minuteComboBox.width
+                            implicitHeight: Math.min(contentItem.implicitHeight, 220)
+                            padding: 1
+
+                            contentItem: ListView {
+                                clip: true
+                                implicitHeight: contentHeight
+                                model: minuteComboBox.popup.visible ? minuteComboBox.delegateModel : null
+                                currentIndex: minuteComboBox.highlightedIndex
+                                ScrollIndicator.vertical: ScrollIndicator { }
+                            }
+
+                            background: Rectangle {
+                                border.color: Theme.border
+                                color: Theme.surface
+                                radius: Theme.radius
+                            }
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingSmall
+
+                AppButton {
+                    text: "Now"
+                    isOutline: true
+                    accentColor: root.accentColor
+                    onClicked: root.applyTemporalNow()
+                }
+
+                Item { Layout.fillWidth: true }
+
+                AppButton {
+                    text: "Cancel"
+                    isPrimary: false
+                    onClicked: temporalEditorPopup.close()
+                }
+
+                AppButton {
+                    text: "Submit"
+                    isPrimary: true
+                    accentColor: root.accentColor
+                    onClicked: root.applyTemporalSubmit()
                 }
             }
         }
