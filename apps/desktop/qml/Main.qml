@@ -1047,6 +1047,7 @@ ApplicationWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
+                anchors.rightMargin: rightFiltersDrawer.visible ? rightFiltersDrawer.width : 0
                 engine: gridEngine
                 schemaName: tableRoot.schema
                 tableName: tableRoot.tableName
