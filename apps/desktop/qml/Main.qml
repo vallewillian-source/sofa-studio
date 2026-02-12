@@ -18,6 +18,8 @@ ApplicationWindow {
     property bool isRestoring: false
     property int resizeHandleSize: 6
     property int filtersPanelWidth: 320
+    readonly property int filtersPanelMinWidth: 240
+    readonly property int filtersPanelMaxWidth: Math.max(filtersPanelMinWidth, Math.min(720, width - 160))
     property int pendingDeleteConnectionId: -1
 
     ListModel {
@@ -2025,6 +2027,47 @@ ApplicationWindow {
                         onClicked: rightFiltersDrawer.resetDraftFilters()
                     }
                 }
+            }
+        }
+
+    }
+
+    Rectangle {
+        id: rightFiltersResizeHandle
+        parent: Overlay.overlay
+        width: 6
+        height: rightFiltersDrawer.height
+        x: rightFiltersDrawer.x - Math.round(width / 2)
+        y: rightFiltersDrawer.y
+        z: rightFiltersDrawer.z + 1
+        color: "transparent"
+        visible: rightFiltersDrawer.visible
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.SizeHorCursor
+            property real startGlobalX: 0
+            property real startWidth: 0
+
+            onPressed: (mouse) => {
+                var point = mapToItem(null, mouse.x, mouse.y)
+                startGlobalX = point.x
+                startWidth = root.filtersPanelWidth
+            }
+
+            onPositionChanged: (mouse) => {
+                if (!pressed) return
+                var point = mapToItem(null, mouse.x, mouse.y)
+                var delta = startGlobalX - point.x
+                var nextWidth = startWidth + delta
+                if (nextWidth < root.filtersPanelMinWidth) {
+                    nextWidth = root.filtersPanelMinWidth
+                }
+                if (nextWidth > root.filtersPanelMaxWidth) {
+                    nextWidth = root.filtersPanelMaxWidth
+                }
+                root.filtersPanelWidth = nextWidth
             }
         }
     }
