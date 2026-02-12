@@ -948,6 +948,7 @@ ApplicationWindow {
 
             RowEditorModal {
                 id: rowEditorModal
+                accentColor: tableRoot.getActiveConnectionColor()
                 onSubmitRequested: (entries) => {
                     if (tableRoot.insertRunning) return
                     if (!entries || entries.length === 0) return
