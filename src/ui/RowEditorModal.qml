@@ -30,8 +30,21 @@ Popup {
         fieldsModel.clear()
 
         for (var i = 0; i < columns.length; i++) {
+            var column = columns[i]
+            var columnName = ""
+            var columnType = ""
+            if (typeof column === "string") {
+                columnName = column
+            } else if (column) {
+                columnName = column.name || ""
+                columnType = column.type || ""
+            }
+            if (!columnName || columnName.length === 0) {
+                continue
+            }
             fieldsModel.append({
-                "name": columns[i],
+                "name": columnName,
+                "type": columnType,
                 "value": ""
             })
         }
@@ -114,13 +127,27 @@ Popup {
                         Layout.fillWidth: true
                         spacing: Theme.spacingSmall
 
-                        Text {
+                        RowLayout {
                             Layout.fillWidth: true
-                            text: model.name
-                            color: Theme.textPrimary
-                            font.pixelSize: 12
-                            font.bold: true
-                            elide: Text.ElideRight
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: model.name
+                                color: Theme.textPrimary
+                                font.pixelSize: 13
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                text: model.type || ""
+                                visible: text.length > 0
+                                color: Theme.textSecondary
+                                opacity: 0.9
+                                font.pixelSize: 11
+                                font.bold: false
+                            }
                         }
 
                         AppTextField {

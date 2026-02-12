@@ -567,7 +567,10 @@ ApplicationWindow {
                 if (!gridEngine) return cols
                 var count = gridEngine.columnCount
                 for (var i = 0; i < count; i++) {
-                    cols.push(gridEngine.getColumnName(i))
+                    cols.push({
+                        "name": gridEngine.getColumnName(i),
+                        "type": gridEngine.getColumnType(i)
+                    })
                 }
                 return cols
             }

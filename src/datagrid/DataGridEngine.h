@@ -31,6 +31,7 @@ public:
     void setColumnDisplayWidth(int index, int width);
     Q_INVOKABLE QVariant getData(int row, int col) const;
     Q_INVOKABLE QString getColumnName(int index) const;
+    Q_INVOKABLE QString getColumnType(int index) const;
     Q_INVOKABLE QVariantList getRow(int row) const;
     
     // For View

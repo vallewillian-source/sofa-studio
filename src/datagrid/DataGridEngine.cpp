@@ -7,6 +7,30 @@
 #include <algorithm>
 
 namespace Sofa::DataGrid {
+namespace {
+QString fallbackTypeLabel(Sofa::Core::DataType type)
+{
+    switch (type) {
+    case Sofa::Core::DataType::Text:
+        return QStringLiteral("text");
+    case Sofa::Core::DataType::Integer:
+        return QStringLiteral("integer");
+    case Sofa::Core::DataType::Real:
+        return QStringLiteral("real");
+    case Sofa::Core::DataType::Boolean:
+        return QStringLiteral("boolean");
+    case Sofa::Core::DataType::Date:
+        return QStringLiteral("date");
+    case Sofa::Core::DataType::DateTime:
+        return QStringLiteral("datetime");
+    case Sofa::Core::DataType::Blob:
+        return QStringLiteral("blob");
+    case Sofa::Core::DataType::Unknown:
+    default:
+        return QStringLiteral("unknown");
+    }
+}
+}
 
 DataGridEngine::DataGridEngine(QObject* parent) : QObject(parent)
 {
@@ -91,6 +115,19 @@ QString DataGridEngine::getColumnName(int index) const
 {
     if (index >= 0 && index < m_schema.columns.size()) {
         return m_schema.columns[index].name;
+    }
+    return QString();
+}
+
+QString DataGridEngine::getColumnType(int index) const
+{
+    if (index >= 0 && index < m_schema.columns.size()) {
+        const auto& column = m_schema.columns[index];
+        const QString rawType = column.rawType.trimmed();
+        if (!rawType.isEmpty()) {
+            return rawType;
+        }
+        return fallbackTypeLabel(column.type);
     }
     return QString();
 }
