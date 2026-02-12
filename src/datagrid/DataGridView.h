@@ -146,6 +146,7 @@ private:
     bool m_hoveredHeaderRow = false;
     int m_hoveredResizeColumn = -1;
     int m_hoveredRowResizeHandle = kRowResizeHandleNone;
+    int m_hoveredGutterRow = -1;
     QSvgRenderer* m_primaryKeyIcon = nullptr;
     int m_sortedColumnIndex = -1;
     bool m_sortAscending = true;
