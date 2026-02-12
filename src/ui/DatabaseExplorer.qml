@@ -5,7 +5,7 @@ import Qt5Compat.GraphicalEffects
 
 Rectangle {
     id: root
-    color: Theme.surface
+    color: Theme.sidebarSurface
     
     property int currentConnectionId: -1
     signal tableClicked(string schema, string table)

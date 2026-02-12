@@ -5,6 +5,7 @@ QtObject {
     // Colors
     property color background: "#0F0F0F"
     property color surface: "#181818"
+    property color sidebarSurface: "#141414"
     property color surfaceHighlight: "#222222"
     property color border: "#333333"
     property color textPrimary: "#E0E0E0"

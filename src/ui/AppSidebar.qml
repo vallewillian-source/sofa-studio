@@ -10,7 +10,7 @@ Rectangle {
     
     Rectangle {
         anchors.fill: parent
-        color: Theme.surface
+        color: Theme.sidebarSurface
         radius: root.sidebarRadius
         z: -1 // Ensure behind content
         
@@ -19,7 +19,7 @@ Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
             height: parent.radius
-            color: Theme.surface
+            color: Theme.sidebarSurface
             visible: parent.radius > 0
         }
         Rectangle {
@@ -27,7 +27,7 @@ Rectangle {
             anchors.right: parent.right
             width: parent.radius
             height: parent.radius
-            color: Theme.surface
+            color: Theme.sidebarSurface
             visible: parent.radius > 0
         }
     }
@@ -353,7 +353,7 @@ Rectangle {
     Component {
         id: extensionsComponent
         Rectangle {
-            color: Theme.surface
+            color: Theme.sidebarSurface
 
             ColumnLayout {
                 anchors.fill: parent
