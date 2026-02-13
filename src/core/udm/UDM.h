@@ -33,6 +33,7 @@ struct Column {
 struct TableSchema {
     QString schema;
     QString name;
+    QString primaryKeyConstraintName;
     std::vector<Column> columns;
 };
 

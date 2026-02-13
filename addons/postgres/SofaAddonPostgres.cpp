@@ -214,33 +214,67 @@ TableSchema PostgresCatalogProvider::getTableSchema(const QString& schema, const
     QSqlDatabase db = QSqlDatabase::database(m_connectionName);
     if (!db.isOpen()) return ts;
 
-    QSqlQuery q(db);
-    q.prepare("SELECT column_name, data_type, udt_name FROM information_schema.columns "
-              "WHERE table_schema = :schema AND table_name = :table "
-              "ORDER BY ordinal_position");
-    q.bindValue(":schema", schema);
-    q.bindValue(":table", table);
-    
-    if (q.exec()) {
-        while (q.next()) {
-            Column col;
-            col.name = q.value(0).toString();
-            // Simple mapping
-            QString typeStr = q.value(1).toString().toLower();
-            col.rawType = q.value(2).toString(); // udt_name is often more useful in PG
-            
-            if (typeStr.contains("int")) col.type = DataType::Integer;
-            else if (typeStr.contains("char") || typeStr.contains("text")) col.type = DataType::Text;
-            else if (typeStr.contains("bool")) col.type = DataType::Boolean;
-            else if (typeStr.contains("date") || typeStr.contains("time")) col.type = DataType::Text; // Handle dates as text for now
-            else col.type = DataType::Text;
-            col.isNumeric = isNumericPostgresType(col.rawType);
+    QSqlQuery columnsQuery(db);
+    columnsQuery.prepare(
+        "SELECT column_name, udt_name, is_nullable, column_default "
+        "FROM information_schema.columns "
+        "WHERE table_schema = :schema AND table_name = :table "
+        "ORDER BY ordinal_position"
+    );
+    columnsQuery.bindValue(":schema", schema);
+    columnsQuery.bindValue(":table", table);
 
+    if (columnsQuery.exec()) {
+        while (columnsQuery.next()) {
+            Column col;
+            col.name = columnsQuery.value(0).toString();
+            col.rawType = columnsQuery.value(1).toString();
+            const QString nullableRaw = columnsQuery.value(2).toString().trimmed().toUpper();
+            col.isNullable = (nullableRaw == "YES");
+            col.defaultValue = columnsQuery.value(3).toString();
+
+            const QString typeStr = col.rawType.trimmed().toLower();
+            if (typeStr.contains("int")) col.type = DataType::Integer;
+            else if (typeStr.contains("float") || typeStr.contains("double") || typeStr == "numeric" || typeStr == "decimal") col.type = DataType::Real;
+            else if (typeStr.contains("bool")) col.type = DataType::Boolean;
+            else col.type = DataType::Text;
+
+            col.isNumeric = isNumericPostgresType(col.rawType);
             col.temporalInputGroup = temporalInputGroupFromPostgresType(col.rawType);
             col.temporalNowExpression = temporalNowExpressionForGroup(col.temporalInputGroup);
-            
+
             ts.columns.push_back(col);
         }
+    }
+
+    QSqlQuery pkQuery(db);
+    pkQuery.prepare(
+        "SELECT tc.constraint_name, kcu.column_name "
+        "FROM information_schema.table_constraints tc "
+        "JOIN information_schema.key_column_usage kcu "
+        "  ON tc.constraint_name = kcu.constraint_name "
+        " AND tc.table_schema = kcu.table_schema "
+        " AND tc.table_name = kcu.table_name "
+        "WHERE tc.constraint_type = 'PRIMARY KEY' "
+        "  AND tc.table_schema = :schema "
+        "  AND tc.table_name = :table "
+        "ORDER BY kcu.ordinal_position"
+    );
+    pkQuery.bindValue(":schema", schema);
+    pkQuery.bindValue(":table", table);
+
+    QSet<QString> primaryKeyColumns;
+    if (pkQuery.exec()) {
+        while (pkQuery.next()) {
+            if (ts.primaryKeyConstraintName.isEmpty()) {
+                ts.primaryKeyConstraintName = pkQuery.value(0).toString();
+            }
+            primaryKeyColumns.insert(pkQuery.value(1).toString());
+        }
+    }
+
+    for (auto& col : ts.columns) {
+        col.isPrimaryKey = primaryKeyColumns.contains(col.name);
     }
     return ts;
 }

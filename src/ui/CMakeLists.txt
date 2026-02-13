@@ -33,6 +33,9 @@ qt_add_qml_module(SofaUI
         ConnectionSelectorModal.qml
         ConnectionErrorModal.qml
         RowEditorModal.qml
+        TableStructureView.qml
+        ColumnEditorModal.qml
+        PostgresDdl.js
     RESOURCES
         assets/table-list-solid-full.svg
         assets/table-cells-large-solid-full.svg

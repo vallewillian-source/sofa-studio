@@ -55,6 +55,9 @@ AppContext::AppContext(std::shared_ptr<ICommandService> commandService,
     connect(m_worker, &QueryWorker::datasetStarted, this, &AppContext::handleDatasetStarted);
     connect(m_worker, &QueryWorker::datasetFinished, this, &AppContext::handleDatasetFinished);
     connect(m_worker, &QueryWorker::datasetError, this, &AppContext::handleDatasetError);
+    connect(m_worker, &QueryWorker::tableSchemaStarted, this, &AppContext::handleTableSchemaStarted);
+    connect(m_worker, &QueryWorker::tableSchemaFinished, this, &AppContext::handleTableSchemaFinished);
+    connect(m_worker, &QueryWorker::tableSchemaError, this, &AppContext::handleTableSchemaError);
     connect(m_worker, &QueryWorker::countFinished, this, &AppContext::handleCountFinished);
     
     m_workerThread.start();
@@ -666,6 +669,42 @@ bool AppContext::getDatasetAsync(const QString& schema, const QString& table, in
     return true;
 }
 
+bool AppContext::getTableSchemaAsync(const QString& schema, const QString& table, const QString& requestTag)
+{
+    if (!m_currentConnection || !m_currentConnection->isOpen()) {
+        setLastError("Connection is not open.");
+        emit tableSchemaError(requestTag, m_lastError);
+        return false;
+    }
+    if (m_queryRunning) {
+        setLastError("A query is already running.");
+        emit tableSchemaError(requestTag, m_lastError);
+        return false;
+    }
+    if (!m_worker) {
+        setLastError("Worker unavailable.");
+        emit tableSchemaError(requestTag, m_lastError);
+        return false;
+    }
+    if (!m_activeConnectionInfo.contains("driverId")) {
+        setLastError("Connection configuration unavailable.");
+        emit tableSchemaError(requestTag, m_lastError);
+        return false;
+    }
+
+    m_queryRunning = true;
+    emit queryRunningChanged();
+    m_activeRequestTag = requestTag;
+    m_activeRequestType = "schema";
+    m_activeBackendPid = -1;
+    QMetaObject::invokeMethod(m_worker, "runTableSchema", Qt::QueuedConnection,
+                              Q_ARG(QVariantMap, m_activeConnectionInfo),
+                              Q_ARG(QString, schema),
+                              Q_ARG(QString, table),
+                              Q_ARG(QString, requestTag));
+    return true;
+}
+
 void AppContext::getCount(const QString& schema, const QString& table, const QString& requestTag)
 {
     if (!m_currentConnection || !m_currentConnection->isOpen()) {
@@ -770,6 +809,39 @@ void AppContext::handleDatasetError(const QString& requestTag, const QString& er
     m_activeRequestTag.clear();
     m_activeRequestType.clear();
     emit datasetError(requestTag, cleanError);
+}
+
+void AppContext::handleTableSchemaStarted(const QString& requestTag, int backendPid)
+{
+    m_activeBackendPid = backendPid;
+    if (requestTag == m_activeRequestTag) {
+        emit tableSchemaStarted(requestTag);
+    }
+}
+
+void AppContext::handleTableSchemaFinished(const QString& requestTag, const QVariantMap& result)
+{
+    if (requestTag != m_activeRequestTag) return;
+    m_queryRunning = false;
+    emit queryRunningChanged();
+    setLastError("");
+    m_activeBackendPid = -1;
+    m_activeRequestTag.clear();
+    m_activeRequestType.clear();
+    emit tableSchemaFinished(requestTag, result);
+}
+
+void AppContext::handleTableSchemaError(const QString& requestTag, const QString& error)
+{
+    if (requestTag != m_activeRequestTag && !m_activeRequestTag.isEmpty()) return;
+    m_queryRunning = false;
+    emit queryRunningChanged();
+    const QString cleanError = sanitizeDriverErrorSuffix(error);
+    setLastError(cleanError);
+    m_activeBackendPid = -1;
+    m_activeRequestTag.clear();
+    m_activeRequestType.clear();
+    emit tableSchemaError(requestTag, cleanError);
 }
 
 void AppContext::handleCountFinished(const QString& requestTag, int total)

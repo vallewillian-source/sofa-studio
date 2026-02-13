@@ -51,6 +51,30 @@ QVariantMap QueryWorker::datasetToVariant(const DatasetPage& page)
     return result;
 }
 
+QVariantMap QueryWorker::tableSchemaToVariant(const TableSchema& schema)
+{
+    QVariantMap result;
+    result["schema"] = schema.schema;
+    result["table"] = schema.name;
+    result["primaryKeyConstraintName"] = schema.primaryKeyConstraintName;
+
+    QVariantList columns;
+    for (const auto& col : schema.columns) {
+        QVariantMap colMap;
+        colMap["name"] = col.name;
+        colMap["type"] = col.rawType;
+        colMap["defaultValue"] = col.defaultValue;
+        colMap["temporalInputGroup"] = col.temporalInputGroup;
+        colMap["temporalNowExpression"] = col.temporalNowExpression;
+        colMap["isPrimaryKey"] = col.isPrimaryKey;
+        colMap["isNullable"] = col.isNullable;
+        colMap["isNumeric"] = col.isNumeric;
+        columns.append(colMap);
+    }
+    result["columns"] = columns;
+    return result;
+}
+
 void QueryWorker::runSql(const QVariantMap& connectionInfo, const QString& queryText, const QString& requestTag)
 {
     if (!m_addonHost) {
@@ -143,6 +167,48 @@ void QueryWorker::runDataset(const QVariantMap& connectionInfo, const QString& s
 
     QVariantMap result = datasetToVariant(page);
     emit datasetFinished(requestTag, result);
+}
+
+void QueryWorker::runTableSchema(const QVariantMap& connectionInfo, const QString& schema, const QString& table, const QString& requestTag)
+{
+    if (!m_addonHost) {
+        emit tableSchemaError(requestTag, "AddonHost indisponível.");
+        return;
+    }
+    QString driverId = connectionInfo.value("driverId").toString();
+    if (!m_addonHost->hasAddon(driverId)) {
+        emit tableSchemaError(requestTag, "Driver indisponível: " + driverId);
+        return;
+    }
+    auto addon = m_addonHost->getAddon(driverId);
+    auto connection = addon->createConnection();
+
+    QString host = connectionInfo.value("host").toString();
+    int port = connectionInfo.value("port", 5432).toInt();
+    QString database = connectionInfo.value("database").toString();
+    QString user = connectionInfo.value("user").toString();
+    QString password = connectionInfo.value("password").toString();
+
+    if (!connection->open(host, port, database, user, password)) {
+        emit tableSchemaError(requestTag, connection->lastError());
+        return;
+    }
+
+    int backendPid = -1;
+    if (auto queryProvider = connection->query()) {
+        backendPid = queryProvider->backendPid();
+    }
+    emit tableSchemaStarted(requestTag, backendPid);
+
+    auto catalog = connection->catalog();
+    if (!catalog) {
+        emit tableSchemaError(requestTag, "Catalog provider indisponível.");
+        return;
+    }
+
+    TableSchema ts = catalog->getTableSchema(schema, table);
+    QVariantMap result = tableSchemaToVariant(ts);
+    emit tableSchemaFinished(requestTag, result);
 }
 
 void QueryWorker::runCount(const QVariantMap& connectionInfo, const QString& schema, const QString& table, const QString& requestTag) {

@@ -50,6 +50,34 @@ ApplicationWindow {
         appTabs.currentIndex = tabModel.count - 1
     }
 
+    function openStructure(schema, tableName) {
+        var title = tableName + " · Structure"
+        console.log("\u001b[36m📌 Abrindo aba\u001b[0m", "structure", schema + "." + tableName)
+        for (var i = 0; i < tabModel.count; i++) {
+            var item = tabModel.get(i)
+            if (item.type === "structure" && item.schema === schema && item.tableName === tableName) {
+                appTabs.currentIndex = i
+                return
+            }
+        }
+        tabModel.append({ "title": title, "type": "structure", "schema": schema, "tableName": tableName })
+        appTabs.currentIndex = tabModel.count - 1
+    }
+
+    function reloadOpenTableTabs(schema, tableName) {
+        if (!contentStack) return
+        var children = contentStack.children
+        for (var i = 0; i < children.length; i++) {
+            var loader = children[i]
+            if (!loader || loader.itemType !== "table" || !loader.item) continue
+            if (String(loader.itemSchema || "") !== String(schema || "")) continue
+            if (String(loader.itemTable || "") !== String(tableName || "")) continue
+            if (loader.item.loadData) {
+                loader.item.loadData(true)
+            }
+        }
+    }
+
     function openConnectionTab(connectionId) {
         var title = connectionId === -1 ? "New Connection" : "Edit Connection"
         
@@ -322,7 +350,13 @@ ApplicationWindow {
                             property string itemTable: model.tableName || ""
                             property string itemSqlText: model.sqlText || ""
                             
-                            sourceComponent: itemType === "home" ? homeComponent : (itemType === "table" ? tableComponent : (itemType === "connection_form" ? connectionFormComponent : sqlComponent))
+                            sourceComponent: itemType === "home"
+                                ? homeComponent
+                                : (itemType === "table"
+                                    ? tableComponent
+                                    : (itemType === "structure"
+                                        ? structureComponent
+                                        : (itemType === "connection_form" ? connectionFormComponent : sqlComponent)))
                             
                             onLoaded: {
                                 console.log("\u001b[36m🧭 Loader\u001b[0m", "index=" + index, "type=" + itemType, "schema=" + itemSchema, "table=" + itemTable)
@@ -332,6 +366,13 @@ ApplicationWindow {
                                     item.loadData()
                                     if (rightFiltersDrawer.visible && appTabs.currentIndex === index) {
                                         rightFiltersDrawer.syncSimpleFieldModelFromActiveTable()
+                                    }
+                                }
+                                if (item && itemType === "structure") {
+                                    item.schema = itemSchema
+                                    item.tableName = itemTable
+                                    if (item.loadStructure) {
+                                        item.loadStructure()
                                     }
                                 }
                                 if (item && itemType === "connection_form") {
@@ -505,6 +546,15 @@ ApplicationWindow {
         id: sqlComponent
         SqlConsole {
             
+        }
+    }
+
+    Component {
+        id: structureComponent
+        TableStructureView {
+            onRequestReloadTableData: (schema, tableName) => {
+                root.reloadOpenTableTabs(schema, tableName)
+            }
         }
     }
 
@@ -985,7 +1035,7 @@ ApplicationWindow {
                         spacing: 4
                         opacity: 0.8
                         font.weight: Font.DemiBold
-                        onClicked: console.log("Structure clicked")
+                        onClicked: root.openStructure(tableRoot.schema, tableRoot.tableName)
                     }
 
                     AppButton {
