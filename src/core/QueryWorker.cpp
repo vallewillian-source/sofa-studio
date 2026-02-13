@@ -29,6 +29,7 @@ QVariantMap QueryWorker::datasetToVariant(const DatasetPage& page)
         colMap["isPrimaryKey"] = col.isPrimaryKey;
         colMap["isNullable"] = col.isNullable;
         colMap["isNumeric"] = col.isNumeric;
+        colMap["isMultilineInput"] = col.isMultilineInput;
         columns.append(colMap);
     }
     result["columns"] = columns;
@@ -69,6 +70,7 @@ QVariantMap QueryWorker::tableSchemaToVariant(const TableSchema& schema)
         colMap["isPrimaryKey"] = col.isPrimaryKey;
         colMap["isNullable"] = col.isNullable;
         colMap["isNumeric"] = col.isNumeric;
+        colMap["isMultilineInput"] = col.isMultilineInput;
         columns.append(colMap);
     }
     result["columns"] = columns;

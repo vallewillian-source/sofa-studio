@@ -89,6 +89,7 @@ Popup {
             var columnDefaultValue = ""
             var columnIsNullable = true
             var columnIsPrimaryKey = false
+            var columnIsMultilineInput = false
             var columnTemporalInputGroup = ""
             var columnTemporalNowExpression = ""
             if (typeof column === "string") {
@@ -99,6 +100,11 @@ Popup {
                 columnDefaultValue = column.defaultValue || ""
                 columnIsNullable = column.isNullable !== false
                 columnIsPrimaryKey = column.isPrimaryKey === true
+                if (column.isMultilineInput !== undefined && column.isMultilineInput !== null) {
+                    columnIsMultilineInput = column.isMultilineInput === true
+                } else {
+                    columnIsMultilineInput = root.isMultilineColumnType(columnType)
+                }
                 columnTemporalInputGroup = column.temporalInputGroup || ""
                 columnTemporalNowExpression = column.temporalNowExpression || ""
             }
@@ -109,6 +115,7 @@ Popup {
                 "name": columnName,
                 "type": columnType,
                 "defaultValue": columnDefaultValue,
+                "isMultilineInput": columnIsMultilineInput,
                 "temporalInputGroup": columnTemporalInputGroup,
                 "temporalNowExpression": columnTemporalNowExpression,
                 "notNull": !columnIsNullable,
@@ -143,6 +150,7 @@ Popup {
             var columnDefaultValue = ""
             var columnIsNullable = true
             var columnIsPrimaryKey = false
+            var columnIsMultilineInput = false
             var columnTemporalInputGroup = ""
             var columnTemporalNowExpression = ""
             if (typeof column === "string") {
@@ -153,6 +161,11 @@ Popup {
                 columnDefaultValue = column.defaultValue || ""
                 columnIsNullable = column.isNullable !== false
                 columnIsPrimaryKey = column.isPrimaryKey === true
+                if (column.isMultilineInput !== undefined && column.isMultilineInput !== null) {
+                    columnIsMultilineInput = column.isMultilineInput === true
+                } else {
+                    columnIsMultilineInput = root.isMultilineColumnType(columnType)
+                }
                 columnTemporalInputGroup = column.temporalInputGroup || ""
                 columnTemporalNowExpression = column.temporalNowExpression || ""
             }
@@ -167,6 +180,7 @@ Popup {
                 "name": columnName,
                 "type": columnType,
                 "defaultValue": columnDefaultValue,
+                "isMultilineInput": columnIsMultilineInput,
                 "temporalInputGroup": columnTemporalInputGroup,
                 "temporalNowExpression": columnTemporalNowExpression,
                 "notNull": !columnIsNullable,
@@ -889,7 +903,7 @@ Popup {
                                 implicitHeight: fieldCardContent.implicitHeight + (Theme.spacingMedium * 2)
                                 readonly property string temporalGroup: String(model.temporalInputGroup || "").trim().toLowerCase()
                                 readonly property bool useTemporalEditor: temporalGroup.length > 0
-                                readonly property bool useMultilineEditor: root.isMultilineColumnType(model.type)
+                                readonly property bool useMultilineEditor: model.isMultilineInput === true
                                 readonly property bool temporalShowsPlaceholder:
                                     String(model.value === null || model.value === undefined ? "" : model.value).length === 0
                                     && String(model.defaultValue === null || model.defaultValue === undefined ? "" : model.defaultValue).length === 0

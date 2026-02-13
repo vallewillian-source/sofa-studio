@@ -317,7 +317,25 @@ Popup {
                             rightPadding: 0
                             topPadding: 0
                             bottomPadding: 0
-                            text: root.previewSqlText()
+                            text: {
+                                // Keep explicit dependencies so preview always updates in both add/edit modes.
+                                root.editing
+                                root.schemaName
+                                root.tableName
+                                root.nameValue
+                                root.typeValue
+                                root.nullableValue
+                                root.defaultExprValue
+                                root.primaryKeyValue
+                                root.originalName
+                                root.originalType
+                                root.originalNullable
+                                root.originalDefaultExpr
+                                root.originalPrimaryKey
+                                root.primaryKeyConstraintName
+                                root.existingPkColumns
+                                return root.previewSqlText()
+                            }
                             color: Theme.textPrimary
                             selectionColor: Theme.accent
                             selectedTextColor: "#FFFFFF"

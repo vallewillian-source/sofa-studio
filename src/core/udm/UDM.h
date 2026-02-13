@@ -27,6 +27,7 @@ struct Column {
     bool isPrimaryKey = false;
     bool isNullable = true;
     bool isNumeric = false; // integration-defined numeric semantic
+    bool isMultilineInput = false; // integration-defined multiline editor semantic
     int displayWidth = 100;
 };
 

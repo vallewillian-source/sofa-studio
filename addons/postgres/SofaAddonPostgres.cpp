@@ -56,6 +56,18 @@ bool isNumericPostgresType(const QString& rawType)
         || t == "decimal"
         || t == "money";
 }
+
+bool isMultilineInputPostgresType(const QString& rawType)
+{
+    const QString t = rawType.trimmed().toLower();
+    return t == "text"
+        || t == "json"
+        || t == "jsonb"
+        || t == "hstore"
+        || t == "array"
+        || t.endsWith("[]")
+        || t.startsWith("_");
+}
 }
 
 // --- PostgresConnection ---
@@ -240,6 +252,7 @@ TableSchema PostgresCatalogProvider::getTableSchema(const QString& schema, const
             else col.type = DataType::Text;
 
             col.isNumeric = isNumericPostgresType(col.rawType);
+            col.isMultilineInput = isMultilineInputPostgresType(col.rawType);
             col.temporalInputGroup = temporalInputGroupFromPostgresType(col.rawType);
             col.temporalNowExpression = temporalNowExpressionForGroup(col.temporalInputGroup);
 
@@ -468,6 +481,7 @@ DatasetPage PostgresQueryProvider::getDataset(const QString& schema, const QStri
             col.defaultValue = defaultValueByColumn.value(col.name);
         }
         col.isNumeric = isNumericPostgresType(col.rawType);
+        col.isMultilineInput = isMultilineInputPostgresType(col.rawType);
         col.temporalInputGroup = temporalInputGroupFromPostgresType(col.rawType);
         col.temporalNowExpression = temporalNowExpressionForGroup(col.temporalInputGroup);
     }

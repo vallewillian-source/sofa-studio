@@ -641,7 +641,8 @@ ApplicationWindow {
                         "temporalNowExpression": gridEngine.getColumnTemporalNowExpression(i),
                         "isNullable": gridEngine.getColumnIsNullable(i),
                         "isPrimaryKey": gridEngine.getColumnIsPrimaryKey(i),
-                        "isNumeric": gridEngine.getColumnIsNumeric(i)
+                        "isNumeric": gridEngine.getColumnIsNumeric(i),
+                        "isMultilineInput": gridEngine.getColumnIsMultilineInput(i)
                     })
                 }
                 return cols

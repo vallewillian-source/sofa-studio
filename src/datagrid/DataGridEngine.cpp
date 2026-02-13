@@ -180,6 +180,14 @@ bool DataGridEngine::getColumnIsNumeric(int index) const
     return false;
 }
 
+bool DataGridEngine::getColumnIsMultilineInput(int index) const
+{
+    if (index >= 0 && index < m_schema.columns.size()) {
+        return m_schema.columns[index].isMultilineInput;
+    }
+    return false;
+}
+
 QVariantList DataGridEngine::getRow(int row) const
 {
     QVariantList list;
@@ -219,6 +227,7 @@ void DataGridEngine::loadFromVariant(const QVariantMap& data)
         col.isPrimaryKey = map["isPrimaryKey"].toBool();
         col.isNullable = map.value("isNullable", true).toBool();
         col.isNumeric = map.value("isNumeric", false).toBool();
+        col.isMultilineInput = map.value("isMultilineInput", false).toBool();
         QString raw = col.rawType.toLower();
         
         // Heuristic for column width based on type and name
