@@ -35,6 +35,21 @@ Item {
     property var ddlOnSuccess: null
     property var ddlOnError: null
     property string primaryKeyConstraintName: ""
+    readonly property int colNameWidth: 220
+    readonly property int colTypeWidth: 140
+    readonly property int colNullableWidth: 90
+    readonly property int colDefaultMinWidth: 260
+    readonly property int colPrimaryKeyWidth: 100
+    readonly property int colActionsWidth: 72
+    readonly property int colSpacing: Theme.spacingMedium
+    readonly property int structureTableMinWidth: (Theme.spacingLarge * 2)
+        + colNameWidth
+        + colTypeWidth
+        + colNullableWidth
+        + colDefaultMinWidth
+        + colPrimaryKeyWidth
+        + colActionsWidth
+        + (colSpacing * 5)
 
     signal requestReloadTableData(string schema, string tableName)
 
@@ -429,150 +444,185 @@ Item {
                 visible: !loading && errorMessage.length === 0
                 spacing: 0
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 34
-                    color: Theme.surface
-                    border.color: Theme.border
-                    border.width: 1
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.spacingLarge
-                        anchors.rightMargin: Theme.spacingLarge
-                        spacing: Theme.spacingMedium
-
-                        Text { text: "Name"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.preferredWidth: 220 }
-                        Text { text: "Type"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.preferredWidth: 140 }
-                        Text { text: "Nullable"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.preferredWidth: 90 }
-                        Text { text: "Default value"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.fillWidth: true }
-                        Text { text: "Primary key"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.preferredWidth: 100 }
-                        Item { Layout.preferredWidth: 72 }
-                    }
-                }
-
-                ListView {
+                Flickable {
+                    id: structureHorizontalFlick
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
-                    model: columnsModel
                     boundsBehavior: Flickable.StopAtBounds
+                    flickableDirection: Flickable.HorizontalFlick
+                    contentWidth: Math.max(width, root.structureTableMinWidth)
+                    contentHeight: height
+                    interactive: contentWidth > width
 
-                    delegate: Rectangle {
-                        width: ListView.view.width
-                        height: 44
-                        color: index % 2 === 0 ? "transparent" : Theme.tintColor(Theme.background, root.accentColor, 0.03)
-                        border.color: Theme.border
-                        border.width: 0
+                    ScrollBar.horizontal: ScrollBar {
+                        policy: structureHorizontalFlick.contentWidth > structureHorizontalFlick.width
+                            ? ScrollBar.AsNeeded
+                            : ScrollBar.AlwaysOff
+                    }
 
-                        RowLayout {
+                    Item {
+                        width: structureHorizontalFlick.contentWidth
+                        height: structureHorizontalFlick.height
+
+                        ColumnLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: Theme.spacingLarge
-                            anchors.rightMargin: Theme.spacingLarge
-                            spacing: Theme.spacingMedium
+                            spacing: 0
 
-                            Text {
-                                text: String(model.name || "")
-                                color: Theme.textPrimary
-                                font.pixelSize: 12
-                                elide: Text.ElideRight
-                                Layout.preferredWidth: 220
-                            }
-
-                            Text {
-                                text: String(model.type || "")
-                                color: Theme.textPrimary
-                                font.pixelSize: 12
-                                elide: Text.ElideRight
-                                Layout.preferredWidth: 140
-                            }
-
-                            Text {
-                                text: model.isNullable === true ? "true" : "false"
-                                color: model.isNullable === true ? Theme.textSecondary : Theme.textPrimary
-                                font.pixelSize: 12
-                                Layout.preferredWidth: 90
-                            }
-
-                            Item {
+                            Rectangle {
                                 Layout.fillWidth: true
-                                height: parent.height
+                                Layout.preferredHeight: 34
+                                color: Theme.surface
+                                border.color: Theme.border
+                                border.width: 1
 
-                                Text {
-                                    id: defaultText
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    text: String(model.defaultValue || "")
-                                    color: Theme.textSecondary
-                                    font.pixelSize: 12
-                                    elide: Text.ElideRight
-                                }
-
-                                ToolTip {
-                                    visible: defaultMouse.containsMouse && String(model.defaultValue || "").length > 0
-                                    text: String(model.defaultValue || "")
-                                    delay: 400
-                                    contentItem: Text { text: String(model.defaultValue || ""); color: Theme.textPrimary; font.pixelSize: 12 }
-                                    background: Rectangle { color: Theme.surfaceHighlight; border.color: Theme.border; border.width: 1; radius: 4 }
-                                }
-
-                                MouseArea {
-                                    id: defaultMouse
+                                RowLayout {
                                     anchors.fill: parent
-                                    hoverEnabled: true
-                                    acceptedButtons: Qt.NoButton
+                                    anchors.leftMargin: Theme.spacingLarge
+                                    anchors.rightMargin: Theme.spacingLarge
+                                    spacing: root.colSpacing
+
+                                    Text { text: "Name"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.minimumWidth: root.colNameWidth; Layout.preferredWidth: root.colNameWidth }
+                                    Text { text: "Type"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.minimumWidth: root.colTypeWidth; Layout.preferredWidth: root.colTypeWidth }
+                                    Text { text: "Nullable"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.minimumWidth: root.colNullableWidth; Layout.preferredWidth: root.colNullableWidth }
+                                    Text { text: "Default value"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.minimumWidth: root.colDefaultMinWidth; Layout.preferredWidth: root.colDefaultMinWidth; Layout.fillWidth: true }
+                                    Text { text: "Primary key"; color: Theme.textSecondary; font.pixelSize: 11; font.bold: true; Layout.minimumWidth: root.colPrimaryKeyWidth; Layout.preferredWidth: root.colPrimaryKeyWidth }
+                                    Item { Layout.minimumWidth: root.colActionsWidth; Layout.preferredWidth: root.colActionsWidth }
                                 }
                             }
 
-                            Text {
-                                text: model.isPrimaryKey === true ? "true" : "false"
-                                color: model.isPrimaryKey === true ? root.accentColor : Theme.textSecondary
-                                font.pixelSize: 12
-                                Layout.preferredWidth: 100
-                                elide: Text.ElideRight
-                            }
+                            ListView {
+                                id: structureListView
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                model: columnsModel
+                                boundsBehavior: Flickable.StopAtBounds
 
-                            RowLayout {
-                                Layout.preferredWidth: 72
-                                spacing: 6
+                                delegate: Rectangle {
+                                    width: structureListView.width
+                                    height: 44
+                                    color: index % 2 === 0 ? "transparent" : Theme.tintColor(Theme.background, root.accentColor, 0.03)
+                                    border.color: Theme.border
+                                    border.width: 0
 
-                                Controls.Button {
-                                    Layout.preferredWidth: 24
-                                    Layout.preferredHeight: 24
-                                    padding: 0
-                                    enabled: !ddlRunning
-                                    onClicked: root.openEditColumnModal(model)
-                                    background: Rectangle { radius: 4; color: parent.hovered ? Theme.surfaceHighlight : "transparent" }
-                                    contentItem: Text {
-                                        text: "✎"
-                                        color: parent.hovered ? Theme.textPrimary : Theme.textSecondary
-                                        font.pixelSize: 14
-                                        font.bold: true
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: Theme.spacingLarge
+                                        anchors.rightMargin: Theme.spacingLarge
+                                        spacing: root.colSpacing
+
+                                        Text {
+                                            text: String(model.name || "")
+                                            color: Theme.textPrimary
+                                            font.pixelSize: 12
+                                            elide: Text.ElideRight
+                                            Layout.minimumWidth: root.colNameWidth
+                                            Layout.preferredWidth: root.colNameWidth
+                                        }
+
+                                        Text {
+                                            text: String(model.type || "")
+                                            color: Theme.textPrimary
+                                            font.pixelSize: 12
+                                            elide: Text.ElideRight
+                                            Layout.minimumWidth: root.colTypeWidth
+                                            Layout.preferredWidth: root.colTypeWidth
+                                        }
+
+                                        Text {
+                                            text: model.isNullable === true ? "true" : "false"
+                                            color: model.isNullable === true ? Theme.textSecondary : Theme.textPrimary
+                                            font.pixelSize: 12
+                                            Layout.minimumWidth: root.colNullableWidth
+                                            Layout.preferredWidth: root.colNullableWidth
+                                        }
+
+                                        Item {
+                                            Layout.minimumWidth: root.colDefaultMinWidth
+                                            Layout.preferredWidth: root.colDefaultMinWidth
+                                            Layout.fillWidth: true
+                                            height: parent.height
+
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                anchors.left: parent.left
+                                                anchors.right: parent.right
+                                                text: String(model.defaultValue || "")
+                                                color: Theme.textSecondary
+                                                font.pixelSize: 12
+                                                elide: Text.ElideRight
+                                            }
+
+                                            ToolTip {
+                                                visible: defaultMouse.containsMouse && String(model.defaultValue || "").length > 0
+                                                text: String(model.defaultValue || "")
+                                                delay: 400
+                                                contentItem: Text { text: String(model.defaultValue || ""); color: Theme.textPrimary; font.pixelSize: 12 }
+                                                background: Rectangle { color: Theme.surfaceHighlight; border.color: Theme.border; border.width: 1; radius: 4 }
+                                            }
+
+                                            MouseArea {
+                                                id: defaultMouse
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                acceptedButtons: Qt.NoButton
+                                            }
+                                        }
+
+                                        Text {
+                                            text: model.isPrimaryKey === true ? "true" : "false"
+                                            color: model.isPrimaryKey === true ? root.accentColor : Theme.textSecondary
+                                            font.pixelSize: 12
+                                            Layout.minimumWidth: root.colPrimaryKeyWidth
+                                            Layout.preferredWidth: root.colPrimaryKeyWidth
+                                            elide: Text.ElideRight
+                                        }
+
+                                        RowLayout {
+                                            Layout.minimumWidth: root.colActionsWidth
+                                            Layout.preferredWidth: root.colActionsWidth
+                                            spacing: 6
+
+                                            Controls.Button {
+                                                Layout.preferredWidth: 24
+                                                Layout.preferredHeight: 24
+                                                padding: 0
+                                                enabled: !ddlRunning
+                                                onClicked: root.openEditColumnModal(model)
+                                                background: Rectangle { radius: 4; color: parent.hovered ? Theme.surfaceHighlight : "transparent" }
+                                                contentItem: Text {
+                                                    text: "✎"
+                                                    color: parent.hovered ? Theme.textPrimary : Theme.textSecondary
+                                                    font.pixelSize: 14
+                                                    font.bold: true
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                }
+                                                ToolTip.visible: parent.hovered
+                                                ToolTip.text: "Edit column"
+                                            }
+
+                                            Controls.Button {
+                                                Layout.preferredWidth: 24
+                                                Layout.preferredHeight: 24
+                                                padding: 0
+                                                enabled: !ddlRunning
+                                                onClicked: root.confirmDropColumn(model)
+                                                background: Rectangle { radius: 4; color: parent.hovered ? Theme.surfaceHighlight : "transparent" }
+                                                contentItem: Text {
+                                                    text: "✕"
+                                                    color: parent.hovered ? Theme.error : Theme.textSecondary
+                                                    font.pixelSize: 14
+                                                    font.bold: true
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                }
+                                                ToolTip.visible: parent.hovered
+                                                ToolTip.text: "Drop column"
+                                            }
+                                        }
                                     }
-                                    ToolTip.visible: parent.hovered
-                                    ToolTip.text: "Edit column"
-                                }
-
-                                Controls.Button {
-                                    Layout.preferredWidth: 24
-                                    Layout.preferredHeight: 24
-                                    padding: 0
-                                    enabled: !ddlRunning
-                                    onClicked: root.confirmDropColumn(model)
-                                    background: Rectangle { radius: 4; color: parent.hovered ? Theme.surfaceHighlight : "transparent" }
-                                    contentItem: Text {
-                                        text: "✕"
-                                        color: parent.hovered ? Theme.error : Theme.textSecondary
-                                        font.pixelSize: 14
-                                        font.bold: true
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                    }
-                                    ToolTip.visible: parent.hovered
-                                    ToolTip.text: "Drop column"
                                 }
                             }
                         }

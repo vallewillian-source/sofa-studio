@@ -355,6 +355,30 @@ Rectangle {
                         }
 
                         Item {
+                            Layout.preferredWidth: model.type === "structure" ? 14 : 0
+                            Layout.preferredHeight: model.type === "structure" ? 14 : 0
+                            visible: model.type === "structure"
+
+                            Image {
+                                id: structureTabIcon
+                                anchors.fill: parent
+                                source: model.type === "structure" ? "assets/table-cells-large-solid-full.svg" : ""
+                                sourceSize.width: 14
+                                sourceSize.height: 14
+                                visible: false
+                                opacity: 1
+                            }
+
+                            ColorOverlay {
+                                anchors.fill: structureTabIcon
+                                source: structureTabIcon
+                                visible: model.type === "structure"
+                                color: "#FFFFFF"
+                                opacity: 0.7
+                            }
+                        }
+
+                        Item {
                             Layout.preferredWidth: model.type === "connection_form" ? 14 : 0
                             Layout.preferredHeight: model.type === "connection_form" ? 14 : 0
                             visible: model.type === "connection_form"

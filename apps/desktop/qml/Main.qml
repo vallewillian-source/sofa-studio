@@ -1026,7 +1026,7 @@ ApplicationWindow {
 
                     AppButton {
                         text: "Structure"
-                        icon.source: "qrc:/qt/qml/sofa/ui/assets/table-list-solid-full.svg"
+                        icon.source: "qrc:/qt/qml/sofa/ui/assets/table-cells-large-solid-full.svg"
                         isPrimary: false
                         isOutline: true
                         accentColor: tableRoot.getActiveConnectionColor()
